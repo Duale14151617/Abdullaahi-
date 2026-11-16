@@ -1,4 +1,4 @@
-# Police HQ Render Blueprint (database is Neon, so no Render database here).
+# Police HQ Render Blueprint (app and database on Render; Neon is used only as a backup copy).
 # Secret values are NOT stored in this file: import them from render.env in the Render dashboard.
 services:
   - type: web
@@ -20,16 +20,26 @@ services:
         sync: false
       - key: ARMYHQ_ADMIN_PASSWORD
         sync: false
-      - key: POSTGRES_HOST
-        sync: false
-      - key: POSTGRES_PORT
-        value: "5432"
       - key: POSTGRES_DB
-        sync: false
+        fromDatabase:
+          name: policehq-db
+          property: database
       - key: POSTGRES_USER
-        sync: false
+        fromDatabase:
+          name: policehq-db
+          property: user
       - key: POSTGRES_PASSWORD
-        sync: false
+        fromDatabase:
+          name: policehq-db
+          property: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: policehq-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: policehq-db
+          property: port
       - key: POSTGRES_SSLMODE
         value: require
       - key: ARMYHQ_SITE_URL
@@ -70,3 +80,11 @@ services:
         value: "0"
       - key: PASSWORD_FORGOT_ENABLED
         value: "0"
+
+databases:
+  - name: policehq-db
+    databaseName: policehq
+    user: policehq_user
+    plan: free
+    region: singapore
+    postgresMajorVersion: "16"

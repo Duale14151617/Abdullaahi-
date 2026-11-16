@@ -1,4 +1,4 @@
-"""Military vehicle registry. One persistent record per Army vehicle, a stable system-generated Vehicle ID, and append-only history.
+"""Police vehicle registry. One persistent record per Police vehicle, a stable system-generated Vehicle ID, and append-only history.
 
 * The registration plate is an attribute, never the identifier: plates can change, the Vehicle ID cannot.
 * Category (Ambulance, Armored truck, Hilux 4x4 ...) is configurable data and is stored apart from make/model.
@@ -16,9 +16,10 @@ from apps.core.appendonly import AppendOnlyError, AppendOnlyModel
 
 
 class VehicleCategory(models.Model):
-    """Configurable category. Seeded with the categories named by the Army; seeding does not assert the Police owns any."""
+    """Configurable category. Seeded with the Police vehicle types (police_fleet.py); seeding does not assert the Police owns any."""
 
     class Group(models.TextChoices):
+        POLICE_VEHICLES = "police_vehicles"  # the main category of the Police fleet (see police_fleet.py)
         UTILITY = "utility"
         PERSONNEL_TRANSPORT = "personnel_transport"
         GENERAL_TRANSPORT = "general_transport"

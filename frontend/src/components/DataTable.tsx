@@ -54,7 +54,7 @@ interface Props<R> {
 }
 
 const DEFAULT_WIDTH = 160;
-const storeKey = (id: string) => `armyhq.table.${id}`;
+const storeKey = (id: string) => `policehq.table.${id}`;
 
 function loadPrefs(id: string, validIds: string[]): TablePrefs | null {
   try {

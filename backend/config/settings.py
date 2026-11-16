@@ -1,4 +1,4 @@
-"""ARMY HQ settings. Every secret comes from environment variables."""
+"""POLICE HQ settings. Every secret comes from environment variables."""
 import base64
 import hashlib
 import os
@@ -48,7 +48,7 @@ CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 # Public address of the app, used for links in emails (password reset). Falls back to the Render hostname.
 SITE_URL = os.environ.get("ARMYHQ_SITE_URL", f"https://{render_hostname}" if render_hostname else "").rstrip("/")
 TRUST_PROXY_HEADERS = env_bool("TRUST_PROXY_HEADERS", False)
-# Which organization this deployment serves: "army" (default) or "police". Police skips the Army regional commands and uses
+# Which organization this deployment serves: "army" (default) or "police". Police skips the Police regional commands and uses
 # apply_police_structure instead (see apps/organization/police_structure.py). Same code, separate database.
 ARMYHQ_PROFILE = os.environ.get("ARMYHQ_PROFILE", "army").strip().lower()
 DEBUG_CLIENT_IP = env_bool("DEBUG_CLIENT_IP", False)  # temporary: log proxy headers to find the real client address
@@ -214,7 +214,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "ARMY HQ API",
+    "TITLE": "POLICE HQ API",
     "DESCRIPTION": "Administrative platform API (draft, synthetic data only).",
     "VERSION": "2.0.0",
     "SERVE_INCLUDE_SCHEMA": False,

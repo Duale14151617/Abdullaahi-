@@ -16,7 +16,7 @@ from apps.core.appendonly import AppendOnlyError, AppendOnlyModel
 
 
 class VehicleCategory(models.Model):
-    """Configurable category. Seeded with the categories named by the Army; seeding does not assert the Army owns any."""
+    """Configurable category. Seeded with the categories named by the Army; seeding does not assert the Police owns any."""
 
     class Group(models.TextChoices):
         UTILITY = "utility"

@@ -21,7 +21,7 @@ from apps.accounts import scope
 from .models import Department, OrganizationalUnit, UnitDepartment
 
 STANDARD_DEPARTMENTS = ("COMMAND_ADMIN", "HR", "MEDICAL", "FINANCE", "LOGISTICS", "COMMUNICATIONS", "TRAINING")
-GHQ_UNIT_CODE = "ARMY-HQ"  # the Army Headquarters (Taliska Guud) is the General Headquarters of the organization
+GHQ_UNIT_CODE = "ARMY-HQ"  # the Police Headquarters (Taliska Guud) is the General Headquarters of the organization
 NAMED_CAP = 300  # names listed on one profile; the directory (paged) holds the complete list
 ROLE_ORDER = ("commander", "deputy", "administrative")
 CHART_ROLES = ("ghq", "regional", "brigade", "battalion")

@@ -56,7 +56,7 @@ class ReadyView(_Public):
 
 # What the login page and header call this deployment. Public, read-only, no secrets.
 PROFILES = {
-    "army": {"name_en": "Puntland Defence Forces HQ", "name_so": "Taliska Ciidamada Difaaca Puntland", "short_name": "ARMY HQ"},
+    "army": {"name_en": "Puntland Defence Forces HQ", "name_so": "Taliska Ciidamada Difaaca Puntland", "short_name": "POLICE HQ"},
     "police": {"name_en": "Puntland Police Force HQ", "name_so": "Taliska Guud ee Booliska Puntland", "short_name": "POLICE HQ"},
 }
 

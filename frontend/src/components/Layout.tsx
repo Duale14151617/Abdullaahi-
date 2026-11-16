@@ -11,8 +11,8 @@ import { useMedia } from "./useMedia";
 import { InstallButton } from "../pwa/install";
 import { ThemeToggle } from "../theme/ThemeToggle";
 
-const SIDEBAR_KEY = "armyhq.sidebar";
-const GROUPS_KEY = "armyhq.navgroups"; // names of the sidebar sections the user has folded away
+const SIDEBAR_KEY = "policehq.sidebar";
+const GROUPS_KEY = "policehq.navgroups"; // names of the sidebar sections the user has folded away
 
 type NavItem = { to: string; label: Key; icon: IconName; show: boolean; match?: string[]; go?: string };
 

@@ -106,7 +106,7 @@ PERMISSIONS = {
     "restricted.access": "Reach personnel records inside restricted units. Never implied by any other permission",
     "tasks.view": "View administrative tasks of units in scope",
     "tasks.manage": "Record, assign, start, complete and cancel administrative tasks of units in scope (headquarters administrators and super administrator)",
-    "changes.propose": "Propose hierarchy-affecting changes (personnel transfers) with the Army order that authorizes them (headquarters); nothing applies until the super administrator approves",
+    "changes.propose": "Propose hierarchy-affecting changes (personnel transfers) with the Police order that authorizes them (headquarters); nothing applies until the super administrator approves",
     "changes.approve": "Approve, reject or start review of proposed hierarchy changes (super administrator); cannot approve one's own request except as the super administrator's own immediate entry",
     "food.view": "View food stores, suppliers, allocations and expiry warnings in scope",
     "food.manage": "Receive food from suppliers, allocate it to units and record deliveries in scope (headquarters administrators and super administrator)",
@@ -249,7 +249,7 @@ DEPARTMENTS = [
 FORMATION_ROLES = {"TALISKA_GUUD": "ghq", "QAYB": "regional", "GUUTO": "brigade", "URUR": "battalion"}
 # code -> (role, Somali, English, unit type it belongs to or None for any unit, exclusive). Leadership offices for unit profiles.
 LEADERSHIP_TYPES = [
-    ("TALIYE_GUUD", "commander", "Taliyaha Taliska Guud", "Army Headquarters commander (Taliye Taliska Guud)", "TALISKA_GUUD", True),
+    ("TALIYE_GUUD", "commander", "Taliyaha Taliska Guud", "Police Headquarters commander (Taliye Taliska Guud)", "TALISKA_GUUD", True),
     ("UNIT_DEPUTY", "deputy", "Ku-xigeenka taliyaha", "Deputy commander", None, True),
     ("ADMIN_LEAD", "administrative", "Madaxa maamulka", "Head of administration", None, True),
     ("DEPT_HEAD", "department_head", "Madaxa waaxda", "Head of department", None, True),
@@ -265,7 +265,7 @@ APPOINTMENT_TYPES = [
 BRANCHES = [("ARMY", "Army", "Ciidanka Dhulka")]
 REGIONS = ["Bari", "Nugaal", "Mudug"]
 
-# Army ranks live in apps/ranks/catalogue.py (the 16 official Puntland Army ranks, as supplied).
+# Army ranks live in apps/ranks/catalogue.py (the 16 official Puntland Police ranks, as supplied).
 # The organizational template lives in apps/organization/reference.py.
 
 
@@ -286,7 +286,7 @@ EXTRA = {
     "logistics_custodian": ["logistics.view", "logistics.manage", "logistics.reconcile", "logistics.report"],
     "training_admin": ["training.view", "training.manage", "training.report", "training.configure"],
 }
-VEHICLE_CATEGORIES = [  # code, name_en, name_so, sort. Available categories only: seeding does not assert that the Army owns any vehicle of a type.
+VEHICLE_CATEGORIES = [  # code, name_en, name_so, sort. Available categories only: seeding does not assert that the Police owns any vehicle of a type.
     ("ambulance", "Ambulance", "Gaari bakhaar", 10), ("armored_truck", "Armored truck", "Gawaari hubaysan", 20),
     ("hilux_4x4", "Hilux 4x4", "Hilux 4x4", 30), ("truck", "Truck", "Gawaari xamuul", 40), ("bus", "Bus", "Bas", 50),
     ("motorcycle", "Motorcycle", "Mooto", 60), ("utility", "Utility vehicle", "Gaari adeeg", 70),
@@ -366,7 +366,7 @@ class Command(BaseCommand):
                     name_so=f"{name} {b.name_so}", level=OU.Level.BRANCH, parent=region, branch=b)
 
         army = branches["ARMY"]
-        # Official Puntland Army ranks (18, as supplied). Idempotent; never overwrites administrator edits or approvals.
+        # Official Puntland Police ranks (18, as supplied). Idempotent; never overwrites administrator edits or approvals.
         created, removed, deactivated = apply_official_ranks(Rank, Personnel, army, timezone.now())
         # Organizational template (Taliska Guud ... Unug), specialist designations and the expected relationships.
         types = ensure_reference(UnitType, SpecialistDesignation, DesignationRule)

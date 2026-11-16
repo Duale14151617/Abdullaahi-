@@ -2207,7 +2207,7 @@ export const so: Record<keyof typeof en, string> = {
   // --- equipment catalogue and vehicle profiles ---
   "nav.equipment": "Equipment catalogue",
   "eq.title": "Equipment reference catalogue",
-  "eq.refOnly": "Reference information only. An entry does not mean the Army holds this equipment.",
+  "eq.refOnly": "Reference information only. An entry does not mean the Police holds this equipment.",
   "eq.search": "Search name, manufacturer or description",
   "eq.kind": "Type",
   "eq.kind.vehicle_model": "Vehicle model",

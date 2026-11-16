@@ -1,0 +1,61 @@
+name: Unzip upload
+
+# Upload a .zip to the repo root (e.g. from your phone on github.com),
+# then run this workflow. It extracts the zip into the repo root, commits
+# the files and deletes the zip. Render then redeploys from the new commit.
+
+on:
+  workflow_dispatch:
+    inputs:
+      zip_path:
+        description: "Path of the zip in the repo (e.g. upload.zip)"
+        required: true
+        default: "upload.zip"
+      strip_top_folder:
+        description: "Remove the single top-level folder inside the zip (e.g. Duuje-main/)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract zip
+        env:
+          ZIP: ${{ inputs.zip_path }}
+          STRIP: ${{ inputs.strip_top_folder }}
+        run: |
+          set -euo pipefail
+          case "$ZIP" in *..*|/*) echo "Invalid path"; exit 1;; esac
+          test -f "$ZIP" || { echo "Zip not found: $ZIP"; exit 1; }
+          rm -rf /tmp/extract && mkdir /tmp/extract
+          unzip -q "$ZIP" -d /tmp/extract
+          rm -rf /tmp/extract/__MACOSX
+          SRC=/tmp/extract
+          if [ "$STRIP" = "true" ]; then
+            COUNT=$(find /tmp/extract -mindepth 1 -maxdepth 1 | wc -l)
+            if [ "$COUNT" -eq 1 ] && [ -d "$(find /tmp/extract -mindepth 1 -maxdepth 1)" ]; then
+              SRC=$(find /tmp/extract -mindepth 1 -maxdepth 1)
+            fi
+          fi
+          # Copy into the repo root, never touching .git or the workflows folder
+          rsync -a --exclude='.git/' --exclude='.github/' "$SRC"/ ./
+          git rm -q --cached "$ZIP" 2>/dev/null || true
+          rm -f "$ZIP"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "Unzip ${{ inputs.zip_path }}"
+            git push
+          fi

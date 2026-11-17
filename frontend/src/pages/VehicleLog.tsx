@@ -132,8 +132,8 @@ export function VehicleLog() {
         </form>
       )}
       {tab === "trips"
-        ? <DataTable id="vehicle-trips" caption={t("vlog.tripLog")} columns={tripCols} rows={trips.data?.results ?? []} rowKey={(x) => x.id} loading={trips.loading} empty={t("vlog.empty")} />
-        : <DataTable id="vehicle-fuel" caption={t("vlog.fuelLog")} columns={fuelCols} rows={fuel.data?.results ?? []} rowKey={(x) => x.id} loading={fuel.loading} empty={t("vlog.empty")} />}
+        ? <DataTable id="vehicle-trips" caption={t("vlog.tripLog")} columns={tripCols} rows={trips.data?.results ?? []} rowKey={(x) => x.id} loading={trips.loading} empty={{ title: t("vlog.empty") }} />
+        : <DataTable id="vehicle-fuel" caption={t("vlog.fuelLog")} columns={fuelCols} rows={fuel.data?.results ?? []} rowKey={(x) => x.id} loading={fuel.loading} empty={{ title: t("vlog.empty") }} />}
     </>
   );
 }

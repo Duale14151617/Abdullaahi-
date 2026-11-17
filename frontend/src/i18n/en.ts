@@ -2534,6 +2534,7 @@ export const en = {
   "trk.report": "Report position",
   "trk.useMyLocation": "Use my phone's location",
   "trk.locating": "Finding location…",
+  "trk.locateMe": "Use my phone's location",
   "trk.noGeo": "This device cannot give its location. Type the position in.",
   "trk.geoDenied": "Location was not shared. Allow location for this site, or type the position in.",
   "trk.saved": "Position saved.",

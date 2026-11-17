@@ -2538,6 +2538,7 @@ export const so: Record<keyof typeof en, string> = {
   "trk.report": "Soo sheeg goobta",
   "trk.useMyLocation": "Isticmaal goobta telefoonkayga",
   "trk.locating": "Goobta waa la raadinayaa…",
+  "trk.locateMe": "Isticmaal goobta taleefankayga",
   "trk.noGeo": "Qalabkan ma bixin karo goobtiisa. Gacanta ku qor.",
   "trk.geoDenied": "Goobta lama wadaagin. Ogolow goobta bogga, ama gacanta ku qor.",
   "trk.saved": "Goobta waa la keydiyay.",

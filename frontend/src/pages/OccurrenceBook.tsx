@@ -93,7 +93,7 @@ export function OccurrenceBook() {
           <button type="submit">{t("ob.save")}</button>
         </form>
       )}
-      <DataTable id="occurrence-book" caption={t("ob.title")} columns={cols} rows={list.data?.results ?? []} rowKey={(x) => x.id} loading={list.loading} empty={t("ob.empty")} />
+      <DataTable id="occurrence-book" caption={t("ob.title")} columns={cols} rows={list.data?.results ?? []} rowKey={(x) => x.id} loading={list.loading} empty={{ title: t("ob.empty") }} />
       {openId && d && d.id === openId && (
         <section className="card" aria-label={d.ob_number}>
           <h2>{d.ob_number} · {cat(d.category)}</h2>

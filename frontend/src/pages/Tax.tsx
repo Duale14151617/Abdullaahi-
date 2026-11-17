@@ -151,7 +151,7 @@ export function Tax() {
       {s && <p>{t("tax.summary", { today: tot(s.today), month: tot(s.this_month), cash: tot(s.uncollected), waiting: s.waiting_to_count })}</p>}
       <div className="row">
         {(["vehicles", "receipts", "handovers", "report", ...(canConfigure ? ["types"] : [])] as const).map((k) => (
-          <button key={k} type="button" className={tab === k ? "" : "secondary"} onClick={() => { setTab(k); setAdding(false); setPaying(null); }}>{t(`tax.tab.${k}` as never)}</button>))}
+          <button key={k} type="button" className={tab === k ? "" : "secondary"} onClick={() => { setTab(k as typeof tab); setAdding(false); setPaying(null); }}>{t(`tax.tab.${k}` as never)}</button>))}
         {(tab === "vehicles" || tab === "receipts") && <Field label={t("common.search")}><input type="search" value={q} onChange={(e) => setQ(e.target.value)} maxLength={60} /></Field>}
         {tab === "vehicles" && <label className="field"><span>{t("tax.overdueOnly")}</span><input type="checkbox" checked={overdue} onChange={(e) => setOverdue(e.target.checked)} /></label>}
       </div>
@@ -185,8 +185,8 @@ export function Tax() {
           <button type="button" className="secondary" onClick={() => void overdueCsv()}>{t("tax.overdueCsv")}</button>{" "}
           <ExportPdfButton build={overduePdf} filename="overdue-vehicles" onError={setError} />
         </p>)}
-      {tab === "vehicles" && <DataTable id="tax-vehicles" caption={t("tax.tab.vehicles")} columns={vehCols} rows={vehicles.data?.results ?? []} rowKey={(x) => x.id} loading={vehicles.loading} empty={t("tax.empty")} />}
-      {tab === "receipts" && <DataTable id="tax-receipts" caption={t("tax.tab.receipts")} columns={payCols} rows={pays.data?.results ?? []} rowKey={(x) => x.id} loading={pays.loading} empty={t("tax.empty")} />}
+      {tab === "vehicles" && <DataTable id="tax-vehicles" caption={t("tax.tab.vehicles")} columns={vehCols} rows={vehicles.data?.results ?? []} rowKey={(x) => x.id} loading={vehicles.loading} empty={{ title: t("tax.empty") }} />}
+      {tab === "receipts" && <DataTable id="tax-receipts" caption={t("tax.tab.receipts")} columns={payCols} rows={pays.data?.results ?? []} rowKey={(x) => x.id} loading={pays.loading} empty={{ title: t("tax.empty") }} />}
       {tab === "handovers" && (<>
         {canRecord && (
           <form className="card" onSubmit={(e) => { e.preventDefault(); void post("/tax/handovers/create/", { org_unit: hoUnit }); }}>
@@ -194,7 +194,7 @@ export function Tax() {
             <UnitPicker label={t("tax.station")} value={hoUnit} onChange={setHoUnit} required />
             <button type="submit">{t("tax.handOver")}</button>
           </form>)}
-        <DataTable id="tax-handovers" caption={t("tax.tab.handovers")} columns={hoCols} rows={hos.data?.results ?? []} rowKey={(x) => x.id} loading={hos.loading} empty={t("tax.empty")} />
+        <DataTable id="tax-handovers" caption={t("tax.tab.handovers")} columns={hoCols} rows={hos.data?.results ?? []} rowKey={(x) => x.id} loading={hos.loading} empty={{ title: t("tax.empty") }} />
       </>)}
       {tab === "report" && (
         <section>

@@ -114,7 +114,7 @@ export function Detention() {
           <button type="submit">{t("det.save")}</button>
         </form>
       )}
-      <DataTable id="detention" caption={t("det.title")} columns={cols} rows={list.data?.results ?? []} rowKey={(x) => x.id} loading={list.loading} empty={t("det.empty")} />
+      <DataTable id="detention" caption={t("det.title")} columns={cols} rows={list.data?.results ?? []} rowKey={(x) => x.id} loading={list.loading} empty={{ title: t("det.empty") }} />
       {openId && d && d.id === openId && (
         <section className="card" aria-label={d.register_no}>
           <h2>{d.register_no} · {d.detainee_name}</h2>

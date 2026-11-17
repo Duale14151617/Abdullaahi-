@@ -86,7 +86,7 @@ export function CustodyFacilities() {
           <button type="submit">{t("fac.save")}</button>
         </form>
       )}
-      <DataTable id="custody-facilities" caption={t("fac.title")} columns={cols} rows={list.data?.results ?? []} rowKey={(x) => x.id} loading={list.loading} empty={t("fac.empty")} />
+      <DataTable id="custody-facilities" caption={t("fac.title")} columns={cols} rows={list.data?.results ?? []} rowKey={(x) => x.id} loading={list.loading} empty={{ title: t("fac.empty") }} />
     </>
   );
 }

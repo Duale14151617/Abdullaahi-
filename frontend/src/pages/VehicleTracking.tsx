@@ -175,13 +175,13 @@ export function VehicleTracking() {
       )}
       <Field label={t("common.search")}><input type="search" value={q} onChange={(e) => setQ(e.target.value)} maxLength={40} /></Field>
       <Plot rows={rows} />
-      <DataTable id="vehicle-latest" caption={t("trk.latest")} columns={cols(true)} rows={rows} rowKey={(x) => x.id} loading={latest.loading} empty={t("trk.empty")} />
+      <DataTable id="vehicle-latest" caption={t("trk.latest")} columns={cols(true)} rows={rows} rowKey={(x) => x.id} loading={latest.loading} empty={{ title: t("trk.empty") }} />
       <Field label={t("trk.historyOf")}>
         <select value={vehicle} onChange={(e) => setVehicle(e.target.value)}>
           <option value="">—</option>{list.map((v) => <option key={v.id} value={v.id}>{label(v)}</option>)}
         </select>
       </Field>
-      {vehicle && <DataTable id="vehicle-history" caption={t("trk.history")} columns={cols(true)} rows={history.data?.results ?? []} rowKey={(x) => x.id} loading={history.loading} empty={t("trk.empty")} />}
+      {vehicle && <DataTable id="vehicle-history" caption={t("trk.history")} columns={cols(true)} rows={history.data?.results ?? []} rowKey={(x) => x.id} loading={history.loading} empty={{ title: t("trk.empty") }} />}
       {(canEdit || (trackers.data?.results.length ?? 0) > 0) && (
         <section className="card">
           <h2>{t("trk.trackers")}</h2>

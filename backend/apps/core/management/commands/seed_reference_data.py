@@ -63,6 +63,13 @@ PERMISSIONS = {
     "vehicles.approve": "Approve or reject a proposed vehicle disposal; cannot decide one's own proposal",
     "vehicles.cost": "See and record maintenance costs on vehicles in scope",
     "vehicles.configure": "Create and edit vehicle categories (headquarters)",
+    "vehicles.position": "Record a vehicle's position (phone location or typed in) for vehicles in scope; reading positions needs vehicles.view",
+    "tax.view": "View the vehicle and traffic tax register (vehicles, receipts, cash handovers) for units in scope; every view is audited",
+    "tax.record": "Register vehicles, record paper receipts, void a wrong receipt and hand cash over for units in scope",
+    "tax.confirm": "Count and confirm a cash handover (never one you handed over yourself)",
+    "tax.configure": "Create and edit tax types and their standard amounts (headquarters)",
+    "detention.view": "View the detention register (who is held, why, since when, custody log) for units in scope; every view is audited",
+    "detention.manage": "Book people into the detention register, log welfare checks and events, release or transfer them and void wrong entries for units in scope",
     "equipment.manage": "Add and edit Equipment Reference Catalogue entries, specifications, photographs and mounted-weapon categories (headquarters)",
     "equipment.verify": "Mark a catalogue entry verified or needs-review; cannot verify an entry one entered oneself (super administrator)",
     "attendance.view": "View attendance and absence records and summaries for personnel in scope",
@@ -131,10 +138,17 @@ HQ_ADMIN_RESERVED = frozenset({
     "payroll.approve", "payroll.decide", "payroll.policy_confirm", "arrears.approve", "survivor.verify", "survivor.approve",
     "payment.prepare", "payment.authorize", "payment.execute", "payment.reconcile", "payment.details",   # money movement
     "personnel.confirm_death",                                             # confirming a death changes status to Died
+    "tax.confirm",                                                         # counting and confirming cash
     "restricted.access", "search.cross_service", "reports.combined",              # restricted units and command-level views
     "disciplinary.view", "disciplinary.manage",                            # disciplinary history stays with branch administrators
     "integrations.manage",                                                 # API clients are a back door if misused
 })
+TAX_TYPES = [  # code, kind, English, Somali (working translation), recurring, sort
+    ("vehicle_licence", "licence", "Vehicle licence", "Shatiga gaariga", True, 10),
+    ("road_tax", "road_tax", "Road tax", "Canshuurta waddada", True, 20),
+    ("traffic_fine", "fine", "Traffic fine", "Ganaaxa gaadiidka", False, 30),
+    ("permit_fee", "fee", "Permit / other fee", "Rukhsad / khidmad kale", False, 40),
+]
 REPORT_TYPES = [  # code, kind, name_en, name_so, figure keys
     ("monthly_admin_report", "report", "Monthly administrative report", "Warbixinta maamul ee bishii",
      ["personnel_strength", "personnel_on_leave", "personnel_in_training"]),
@@ -195,9 +209,9 @@ ROLES = {
                BASIC + ["personnel.view_team"]),
     # Taliye Guuto / Taliye Urur: record attendance for their unit and below, and make the unit situation report (attendance,
     # personnel status, ammunition issued and remaining). Assigned per unit; link it to the command appointment so that it ends with it.
-    "unit_commander": ("Unit commander (Taliye Guuto / Taliye Urur)", "Taliyaha cutubka (Taliye Guuto / Taliye Urur)", False, False,
+    "unit_commander": ("Unit commander (Taliye Koox)", "Taliyaha cutubka (Taliye Koox)", False, False,
                        ["unit"], BASIC + ["personnel.view", "attendance.view", "attendance.record", "reports.view", "reports.submit",
-                                          "logistics.view", "logistics.restricted", "weapons.view", "vehicles.view"]),
+                                          "logistics.view", "logistics.restricted", "weapons.view", "vehicles.view", "vehicles.position", "detention.view"]),
     # Taliye Qaybeed: sees what the heads of the Guuto and Urur in the region have posted (reports, attendance, personnel). Assigned at the
     # regional command (a Qayb). View only: reviewing or approving the reports is a separate authority.
     "regional_commander": ("Regional commander (Taliye Qaybeed)", "Taliyaha Qaybta (Taliye Qaybeed)", True, False, ["branch_command"],
@@ -209,9 +223,19 @@ ROLES = {
     # Transport / fleet officer: keeps the vehicle register for the units in the assignment. Privileged (MFA) like the other restricted
     # custodians. Disposal approval is a separate role so that the proposer and the approver are different people.
     "transport_officer": ("Transport officer", "Sarkaalka gaadiidka", True, False, ["region", "branch_command", "unit"],
-                          BASIC + ["vehicles.view", "vehicles.create", "vehicles.edit", "vehicles.transfer", "vehicles.dispose", "vehicles.cost"]),
+                          BASIC + ["vehicles.view", "vehicles.create", "vehicles.edit", "vehicles.transfer", "vehicles.dispose", "vehicles.cost", "vehicles.position"]),
     "vehicle_disposal_approver": ("Vehicle disposal approver", "Ansixiyaha ka saarista gaadiidka", True, False, ["headquarters", "region", "branch_command"],
                                   BASIC + ["vehicles.view", "vehicles.approve"]),
+    # Custody officer: keeps the detention register for the stations in the assignment. Privileged (MFA): the register holds personal data
+    # about people held. Station commanders can read it (unit_commander); only this role and the headquarters administrator write to it.
+    # Tax collection: the collector registers vehicles, records receipts and hands cash over; a different person (finance) counts and confirms it.
+    # Both are privileged (MFA) because they handle cash records.
+    "tax_collector": ("Tax collector", "Aruuriyaha canshuurta", True, False, ["region", "branch_command", "unit"],
+                      BASIC + ["tax.view", "tax.record"]),
+    "tax_cashier": ("Tax cash officer", "Sarkaalka lacagta canshuurta", True, False, ["headquarters", "region", "branch_command"],
+                    BASIC + ["tax.view", "tax.confirm"]),
+    "custody_officer": ("Custody officer", "Sarkaalka xabsiga ilaalada", True, False, ["region", "branch_command", "unit"],
+                        BASIC + ["detention.view", "detention.manage"]),
     # Finance duties are split four ways: the payroll officer PREPARES (runs, payment instructions, arrears), the approver AUTHORISES,
     # the payment officer EXECUTES (sends the payment outside the system and records it), the reconciler CHECKS it against the
     # statement; the auditor only reads the audit log. The service layer also refuses self-approval, so one person holding two
@@ -401,6 +425,9 @@ class Command(BaseCommand):
             VehicleStatusType.objects.get_or_create(code=code, defaults={"name_en": en, "name_so": so, "available": avail, "is_system": True, "sort_order": order})
         for code, en, so, order in VEHICLE_CATEGORIES:
             VehicleCategory.objects.get_or_create(code=code, defaults={"name_en": en, "name_so": so, "sort_order": order, "group": VEHICLE_GROUPS.get(code, "other")})
+        from apps.tax.models import TaxType
+        for code, kind, en, so, recurring, order in TAX_TYPES:  # created once, WITHOUT amounts: headquarters sets them; edits never overwritten
+            TaxType.objects.get_or_create(code=code, defaults={"kind": kind, "name_en": en, "name_so": so, "recurring": recurring, "sort_order": order})
         from apps.equipment.models import EquipmentItem, MountedWeaponCategory
         from apps.equipment.reference import seed_catalogue
         seed_catalogue(VehicleCategory, MountedWeaponCategory, EquipmentItem)  # reference models and categories; created once, edits never overwritten

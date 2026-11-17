@@ -25,3 +25,13 @@ def give_new_police_stations_their_kooxo(sender, instance, created=False, raw=Fa
     from .models import UnitType
 
     police_structure.create_kooxo_for_station(OrganizationalUnit, UnitType, instance)
+
+
+@receiver(post_save, sender=OrganizationalUnit, dispatch_uid="org_police_station_jail_center")
+def give_new_police_stations_a_jail_center(sender, instance, created=False, raw=False, **kwargs):
+    """Every new police station gets its jail center (the station's own lock-up) so people can be booked into it straight away."""
+    if raw or not created or not instance.unit_type_id or instance.unit_type.code != "POLICE_STATION":
+        return
+    from apps.detention.facilities import ensure_jail_center
+
+    ensure_jail_center(instance)

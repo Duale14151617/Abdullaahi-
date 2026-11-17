@@ -15,6 +15,18 @@ class PoliceStructureTests(TestCase):
         call_command("seed_reference_data", verbosity=0)
         call_command("apply_police_structure", "--apply", stdout=StringIO())
 
+    def test_army_only_unit_types_are_retired_and_koox_is_the_only_team_level(self):
+        from apps.organization.models import SpecialistDesignation
+        for code in ("GUUTO", "URUR", "HORIN", "KOOX"):
+            self.assertFalse(UnitType.objects.get(code=code).active, code)
+        self.assertFalse(SpecialistDesignation.objects.get(code="SANCO").active)
+        for code in ("TALIYE_GUUTO", "TALIYE_URUR"):
+            self.assertFalse(AppointmentType.objects.get(code=code).active, code)
+        self.assertTrue(UnitType.objects.get(code="POLICE_KOOX").active)
+        out = StringIO()
+        call_command("apply_police_structure", "--apply", stdout=out)  # a second run retires nothing more
+        self.assertNotIn("retire_", out.getvalue())
+
     def test_the_police_profile_builds_no_army_regional_commands(self):
         self.assertFalse(OU.objects.filter(code__endswith="-ARMY").exists())
 
@@ -72,3 +84,40 @@ class PoliceStructureTests(TestCase):
     def test_the_tier_order_only_allows_the_police_hierarchy(self):
         t = {x.code: x.tier for x in UnitType.objects.filter(code__startswith="POLICE_")}
         self.assertTrue(t["POLICE_HQ"] < t["POLICE_REGION"] < t["POLICE_DISTRICT"] < t["POLICE_STATION"] < t["POLICE_KOOX"])
+
+
+@override_settings(ARMYHQ_PROFILE="police")
+class GenericStationTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_reference_data", verbosity=0)
+        call_command("apply_police_structure", "--apply", stdout=StringIO())
+
+    def test_every_regional_command_has_station_one_and_station_two_with_two_kooxo_each(self):
+        for rcode, _ in ps.REGIONS:
+            cmd = OU.objects.get(code=f"{rcode}-POL")
+            stations = {s.code: s for s in cmd.children.filter(unit_type__code="POLICE_STATION")}
+            self.assertEqual(sorted(stations), [f"{rcode}-POL-S1", f"{rcode}-POL-S2"])
+            self.assertEqual((stations[f"{rcode}-POL-S1"].name_en, stations[f"{rcode}-POL-S1"].name_so), ("Station one", "Jeelka kowaad"))
+            self.assertEqual((stations[f"{rcode}-POL-S2"].name_en, stations[f"{rcode}-POL-S2"].name_so), ("Station two", "Jeelka labaad"))
+            for st in stations.values():
+                self.assertEqual(st.children.filter(unit_type__code="POLICE_KOOX").count(), 2)
+                self.assertEqual(st.branch_id, cmd.branch_id)
+
+    def test_the_stations_are_not_duplicated_on_a_second_run(self):
+        before = OU.objects.count()
+        call_command("apply_police_structure", "--apply", stdout=StringIO())
+        self.assertEqual(OU.objects.count(), before)
+
+    def test_every_station_has_a_jail_center_and_each_region_a_generic_prison(self):
+        from apps.detention.models import CustodyFacility
+        self.assertEqual(CustodyFacility.objects.filter(kind="jail_center").count(), 18)
+        for st in OU.objects.filter(code__regex=r"-POL-S[12]$"):
+            jail = CustodyFacility.objects.get(code=f"{st.code}-JAIL")
+            self.assertEqual((jail.kind, jail.org_unit_id, jail.operated_by), ("jail_center", st.pk, "Police"))
+        call_command("apply_custody_facilities", stdout=StringIO())
+        self.assertEqual(CustodyFacility.objects.filter(kind="prison").count(), 9)
+        again = StringIO()
+        call_command("apply_custody_facilities", stdout=again)  # a second run adds nothing
+        self.assertIn("0 jail centers and 0 prisons added", again.getvalue())
+        self.assertEqual(CustodyFacility.objects.count(), 27)

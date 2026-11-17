@@ -9,6 +9,8 @@ tools. Shape created:
       Regional commands, one for EACH region (a commander and a deputy each)
         Bari, Karkaar, Mudug, Nugaal, Gardafuu, Highland, Sool, Sanaag, Cayn
         Sections in every regional command: CID, Traffic, Tax collection
+      Two generic stations under every regional command: "Station one / Jeelka kowaad" (CODE-POL-S1) and "Station two / Jeelka labaad"
+      (CODE-POL-S2), each with Koox 1 and Koox 2. Rename them, or add real ones, with the normal unit tools.
       Districts (a chief and a deputy each), police stations (a commander and a deputy each) and Kooxo are added by authorized
       users with the normal unit tools: the real district and station names are theirs to enter. Every new station is created
       with two Kooxo (Koox 1 and Koox 2) automatically; add more by hand.
@@ -53,6 +55,19 @@ APPOINTMENTS = [
     ("POLICE_STATION_DEPUTY", "Ku-xigeenka Taliyaha Saldhigga", "Deputy station commander", "POLICE_STATION", "deputy"),
 ]
 KOOXO_PER_STATION = 2
+# Two generic police stations (Jeelka) under EVERY regional command, so each region starts with somewhere to book detainees and post
+# officers. code suffix, English, Somali. Real stations are added with the normal unit tools; these are placeholders to rename.
+STATIONS = [
+    ("S1", "Station one", "Jeelka kowaad"),
+    ("S2", "Station two", "Jeelka labaad"),
+]
+
+# The Police uses only the Police unit types above, and Koox is its team level. These Army-template types, the Sanco designation
+# and the Guuto/Urur appointment titles are switched off (active=False, never deleted) while nothing uses them. An administrator
+# can switch any of them back on.
+RETIRE_TYPES = ("GUUTO", "URUR", "HORIN", "KOOX")
+RETIRE_DESIGNATIONS = ("SANCO",)
+RETIRE_APPOINTMENTS = ("TALIYE_GUUTO", "TALIYE_URUR")
 
 
 def create_kooxo_for_station(OU, UnitType, station, count=KOOXO_PER_STATION):
@@ -139,4 +154,39 @@ def apply(OU, UnitType, ServiceBranch, AppointmentType, dry_run=True):
                 out.append(("create_unit", scode))
             else:
                 ensure(scode, name_so=so, name_en=en, level=OU.Level.UNIT, parent=cmd, unit_type=types.get("POLICE_SECTION"))
+        for suffix, en, so in STATIONS:  # the two generic stations; creating one also gives it Koox 1 and Koox 2 (signal)
+            scode = f"{cmd_code}-{suffix}"
+            if cmd is None:
+                out.append(("create_unit", scode))
+            else:
+                ensure(scode, name_so=so, name_en=en, level=OU.Level.UNIT, parent=cmd, unit_type=types.get("POLICE_STATION"))
+
+    if not dry_run:  # a generic station that existed before its Kooxo were added still gets them (never duplicates)
+        for rcode, _ in REGIONS:
+            for suffix, _en, _so in STATIONS:
+                st = OU.objects.filter(code=f"{rcode}-POL-{suffix}", unit_type__code="POLICE_STATION").first()
+                if st is not None and create_kooxo_for_station(OU, UnitType, st):
+                    out.append(("create_koox", f"{st.code}: missing Kooxo added"))
+
+    # Retire the Army-only types so the Police sees Koox as its only team level.
+    from apps.organization.models import SpecialistDesignation
+    from apps.personnel.models import CommandAppointment
+    for code in RETIRE_TYPES:
+        t = UnitType.objects.filter(code=code, active=True).first()
+        if t is not None and not OU.objects.filter(unit_type=t).exists():
+            out.append(("retire_type", code))
+            if not dry_run:
+                UnitType.objects.filter(pk=t.pk).update(active=False, version=F("version") + 1, updated_at=timezone.now())
+    for code in RETIRE_DESIGNATIONS:
+        d = SpecialistDesignation.objects.filter(code=code, active=True).first()
+        if d is not None and not OU.objects.filter(designations=d).exists():
+            out.append(("retire_designation", code))
+            if not dry_run:
+                SpecialistDesignation.objects.filter(pk=d.pk).update(active=False, version=F("version") + 1, updated_at=timezone.now())
+    for code in RETIRE_APPOINTMENTS:
+        a = AppointmentType.objects.filter(code=code, active=True).first()
+        if a is not None and not CommandAppointment.objects.filter(appointment_type=a).exists():
+            out.append(("retire_appointment_type", code))
+            if not dry_run:
+                AppointmentType.objects.filter(pk=a.pk).update(active=False, version=F("version") + 1, updated_at=timezone.now())
     return out

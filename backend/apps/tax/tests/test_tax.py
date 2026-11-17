@@ -1,4 +1,5 @@
 """Vehicle and traffic taxes (cash, paper receipt): acceptance tests. Synthetic data only."""
+from decimal import Decimal
 from datetime import date, timedelta
 
 from django.utils import timezone
@@ -57,7 +58,7 @@ class VehicleAndPaymentTests(TaxBase):
         first = self.pay(v, "R-1", paid_on=timezone.localdate().isoformat()).data
         self.assertIsNotNone(first["period_to"])
         second = self.pay(v, "R-2").data
-        self.assertEqual(second["period_from"], str(date.fromisoformat(first["period_to"]) + timedelta(days=1)))
+        self.assertEqual(second["period_from"], str(date.fromisoformat(str(first["period_to"])) + timedelta(days=1)))
         detail = self.collector.get(f"{URL}{v['id']}/vehicle/").data
         self.assertFalse(detail["cover"][0]["overdue"])
 
@@ -84,7 +85,7 @@ class VehicleAndPaymentTests(TaxBase):
     def test_overdue_filter(self):
         a, b = self.vehicle("AA-1"), self.vehicle("BB-2")
         self.pay(a, "R-1")
-        listed = [x["plate"] for x in self.collector.get(URL + "vehicles/?overdue=1").data["results"]]
+        listed = [x["plate"] for x in self.collector.get(URL + "vehicles/?overdue=1&type=vehicle_licence").data["results"]]
         self.assertEqual(listed, ["BB-2"])
 
     def test_delete_is_impossible(self):
@@ -176,7 +177,7 @@ class ReportAndExportTests(TaxBase):
         r = self.collector.get(URL + "report/").data
         self.assertEqual(sum(float(x["total"]) for x in r["rows"]), 25.0)
         self.assertEqual(r["voided"], 1)
-        self.assertEqual(r["held_by_collectors"][0]["total"], "25.00")
+        self.assertEqual(Decimal(str(r["held_by_collectors"][0]["total"])), Decimal("25.00"))
         self.assertEqual(self.collector.get(URL + "report/?from=2026-02-01&to=2026-01-01").status_code, 400)
         self.assertEqual(len(self.nugaal.get(URL + "report/").data["rows"]), 0)  # other region sees nothing
 

@@ -103,8 +103,9 @@ class FlagTests(AmmoControlBase):
 
 class TraceTests(AmmoControlBase):
     def test_lot_trace_shows_who_drew_the_lot(self):
-        self.give(90, "V1", lot="LOT-77")
-        self.give(40, "V2", person=self.s2, lot="lot-77")
+        self.assertEqual(self.give(90, "V1", lot="LOT-77").status_code, 201)
+        second = self.give(40, "V2", person=self.s2, lot="lot-77")
+        self.assertEqual(second.status_code, 201, second.content)  # shows the refusal reason in CI if S-2 is out of scope
         r = self.armourer.get(f"{C}trace/", {"lot": "LOT-77"})
         self.assertEqual(r.status_code, 200, r.content)
         who = sorted(i["personnel"]["service_number"] for i in r.json()["lot"]["issues"])

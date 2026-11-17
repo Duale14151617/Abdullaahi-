@@ -137,7 +137,10 @@ class RouteCompatibilityTests(BaseApiTest):
                                  ("organization/formation-roles", "formation-role"), ("organization/analytics", "org-analytics"),
                                  ("ammo-control", "ammo-control"),
                                  # modules added after 2.0: protective equipment, equipment/vehicle models, inventory catalogue
-                                 ("ppe", "ppe"), ("equipment", "equipment"), ("inventories", "inventory")})  # attendance, weapons, ammunition and payroll modules
+                                 ("ppe", "ppe"), ("equipment", "equipment"), ("inventories", "inventory"),
+                                 # Police modules: detention register, custody facilities, occurrence book, vehicle log and tracking, taxes
+                                 ("detention", "detention"), ("custody-facilities", "custody-facility"), ("occurrence-book", "occurrence-book"),
+                                 ("vehicle-tracking", "vehicle-tracking"), ("vehicle-log", "vehicle-log"), ("tax", "tax")})  # attendance, weapons, ammunition and payroll modules
 
     def test_version_1_prefix_is_unchanged(self):
         self.assertEqual(self.client_for(self.make_user("hqr", "hq_reporting")).get("/api/v1/auth/me/").status_code, 200)

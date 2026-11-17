@@ -126,4 +126,5 @@ class CustodyFacilityViewSet(viewsets.GenericViewSet):
                 f.version += 1
                 f.save()
                 record("detention.facility_edit", request=request, entity_type="custody_facility", entity_id=f.pk, metadata={"code": f.code, "fields": changed})
-        return Response(_out(F.objects.select_related("org_unit").get(pk=f.pk)))
+        return Response(_out(F.objects.select_related("org_unit").annotate(held_now=Count("records", filter=Q(records__status="in_custody"), distinct=True),
+                                                                         received_total=Count("received", distinct=True)).get(pk=f.pk)))

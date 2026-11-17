@@ -86,6 +86,16 @@ def add_months(d, months):
     return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
 
 
+def _iso(value):
+    """A date as YYYY-MM-DD text (or None), so the API answer is the same whether it is read before or after JSON rendering."""
+    return value.isoformat() if value is not None else None
+
+
+def _money_str(value):
+    """Money always with two decimals ('25.00'); SQLite sums come back without the scale, PostgreSQL ones with it."""
+    return str(Decimal(str(value)).quantize(Decimal("0.01")))
+
+
 def _actor(request):
     return getattr(getattr(request, "user", None), "username", "") or ""
 
@@ -309,7 +319,7 @@ def _vehicle_out(v, cover=None):
          "make_model": v.make_model, "org_unit": _unit_brief(v.org_unit), "active": v.active, "notes": v.notes, "version": v.version}
     if cover is not None:
         today = timezone.localdate()
-        d["cover"] = [{"tax_type": code, "paid_until": end, "overdue": end is None or end < today} for code, end in cover]
+        d["cover"] = [{"tax_type": code, "paid_until": _iso(end), "overdue": end is None or end < today} for code, end in cover]
     return d
 
 
@@ -317,7 +327,7 @@ def _payment_out(p):
     return {"id": str(p.pk), "receipt_no": p.receipt_no, "org_unit": _unit_brief(p.org_unit),
             "vehicle": {"id": str(p.vehicle.pk), "plate": p.vehicle.plate, "owner_name": p.vehicle.owner_name},
             "tax_type": {"id": str(p.tax_type.pk), "code": p.tax_type.code, "name_en": p.tax_type.name_en, "name_so": p.tax_type.name_so},
-            "amount": str(p.amount), "currency": p.currency, "paid_on": p.paid_on, "period_from": p.period_from, "period_to": p.period_to,
+            "amount": _money_str(p.amount), "currency": p.currency, "paid_on": _iso(p.paid_on), "period_from": _iso(p.period_from), "period_to": _iso(p.period_to),
             "reference": p.reference, "collector": _person_brief(p.collected_by) if p.collected_by_id else None, "recorded_by": p.collected_by_username,
             "handover": p.handover.number if p.handover_id else None, "void": p.voided_at is not None, "voided_reason": p.voided_reason, "version": p.version}
 
@@ -515,7 +525,7 @@ class TaxViewSet(viewsets.GenericViewSet):
         month = today.replace(day=1)
 
         def total(qs):
-            return [{"currency": r["currency"], "total": str(r["s"]), "count": r["n"]} for r in qs.values("currency").annotate(s=Sum("amount"), n=Count("id")).order_by("currency")]
+            return [{"currency": r["currency"], "total": _money_str(r["s"]), "count": r["n"]} for r in qs.values("currency").annotate(s=Sum("amount"), n=Count("id")).order_by("currency")]
 
         out = {"today": total(live.filter(paid_on=today)), "this_month": total(live.filter(paid_on__gte=month)), "uncollected": total(live.filter(handover__isnull=True)),
                "waiting_to_count": self._handovers().filter(status="submitted").count()}
@@ -547,9 +557,9 @@ class TaxViewSet(viewsets.GenericViewSet):
         unit = lambda r: {"code": r["org_unit__code"], "name_en": r["org_unit__name_en"], "name_so": r["org_unit__name_so"]}  # noqa: E731
         return Response({"from": d0, "to": d1,
                          "rows": [{"date": r["paid_on"], "unit": unit(r), "tax_type": {"code": r["tax_type__code"], "name_en": r["tax_type__name_en"], "name_so": r["tax_type__name_so"]},
-                                   "currency": r["currency"], "count": r["n"], "total": str(r["total"])} for r in rows],
+                                   "currency": r["currency"], "count": r["n"], "total": _money_str(r["total"])} for r in rows],
                          "voided": span.filter(voided_at__isnull=False).count(),
-                         "held_by_collectors": [{"unit": unit(r), "currency": r["currency"], "count": r["n"], "total": str(r["total"])} for r in held]})
+                         "held_by_collectors": [{"unit": unit(r), "currency": r["currency"], "count": r["n"], "total": _money_str(r["total"])} for r in held]})
 
     @action(detail=False, methods=["get"], url_path="overdue-export")
     def overdue_export(self, request):

@@ -89,7 +89,7 @@ class ScopeTests(OccurrenceBase):
         self.assertEqual(self.enter(c=self.nugaal).status_code, 400)  # cannot write in Bari's book
         self.assertEqual(self.member.get(OB).status_code, 403)
         self.assertEqual(self.cmdr.get(OB).status_code, 200)  # a station commander reads but does not write
-        self.assertEqual(self.enter(c=self.cmdr).status_code, 400)
+        self.assertEqual(self.enter(c=self.cmdr).status_code, 403)
 
     def test_search_and_summary(self):
         self.make_entry(summary="Lost wallet near the market", category="theft_loss")

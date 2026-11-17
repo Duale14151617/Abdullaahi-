@@ -38,7 +38,7 @@ function Node({ node, depth }: { node: ChartNode; depth: number }) {
 
 /** Expandable organizational chart: General Headquarters > commands > brigades > battalions, each with its strength. */
 export function OrgChart() {
-  const { t } = useI18n();
+  const { t, name } = useI18n();
   const chart = useFetch<{ count: number; roots: ChartNode[]; prisons?: ChartPrison[]; counts_complete: boolean }>("/organization/units/chart/");
   if (chart.loading && !chart.data) return <Loading />;
   return (

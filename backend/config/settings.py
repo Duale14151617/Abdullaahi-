@@ -229,7 +229,9 @@ ENABLE_API_DOCS = env_bool("ENABLE_API_DOCS", DEBUG)
 # Detention register: a person held this many hours or longer is flagged for review (an alert only; set to the rule your command applies).
 # Vehicle and traffic taxes: currency used for cash handovers when none is given.
 TAX_CURRENCY = os.environ.get("TAX_CURRENCY", "USD").strip().upper()[:3] or "USD"
-DETENTION_REVIEW_HOURS = int(os.environ.get("DETENTION_REVIEW_HOURS", "48"))
+DETENTION_REVIEW_HOURS = int(os.environ.get("DETENTION_REVIEW_HOURS", "48"))  # review alert interval, set by the administration; not a legal limit
+# 1 = refuse a booking at a station that has no verified, operational jail center (default: record the arrest and flag it on the dashboard)
+DETENTION_REQUIRE_OPERATIONAL_FACILITY = os.environ.get("DETENTION_REQUIRE_OPERATIONAL_FACILITY", "0") == "1"
 PERSONNEL_EXPORT_ENABLED = env_bool("PERSONNEL_EXPORT_ENABLED", False)
 
 # Emergency override of the different-person payroll rules, super admin only, written reason required, always audited (see apps/payroll/breakglass.py).

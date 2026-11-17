@@ -11,13 +11,20 @@ interface UnitB { id: string; code: string; name_en: string; name_so: string }
 interface Facility {
   id: string; code: string; kind: "jail_center" | "prison"; name_en: string; name_so: string; org_unit: UnitB | null; location: string;
   capacity: number | null; operated_by: string; active: boolean; version: number; held_now: number | null; received_total: number | null;
+  status: "unverified" | "operational" | "suspended" | "closed"; status_note: string; status_by: string; usable: boolean;
+  capacity_effective: number | null; cells: number | null; available: number | null; over_capacity: boolean | null;
 }
+interface Cell { id: string; code: string; name: string; capacity: number; note: string; active: boolean; occupied: number; available: number; version: number }
 const clean = (f: Record<string, FormDataEntryValue>) => Object.fromEntries(Object.entries(f).filter(([, v]) => v !== ""));
 
 export function CustodyFacilities() {
   const { t, name } = useI18n();
   const { can } = useAuth();
   const canEdit = can("detention.manage");
+  const canVerify = can("detention.verify");
+  const [statusFor, setStatusFor] = useState<Facility | null>(null);
+  const [cellsFor, setCellsFor] = useState<Facility | null>(null);
+  const cells = useFetch<{ results: Cell[] }>(cellsFor ? `/custody-facilities/${cellsFor.id}/cells/` : null);
   const [kind, setKind] = useState("");
   const [adding, setAdding] = useState(false);
   const [newKind, setNewKind] = useState<"jail_center" | "prison">("jail_center");
@@ -42,10 +49,15 @@ export function CustodyFacilities() {
     { id: "kind", header: t("fac.kind"), cell: (x) => <Chip tone={x.kind === "prison" ? "draft" : "approved"}>{t(`fac.kind.${x.kind}` as never)}</Chip> },
     { id: "unit", header: t("fac.station"), cell: (x) => (x.org_unit ? name(x.org_unit) : "—") },
     { id: "by", header: t("fac.operator"), cell: (x) => x.operated_by || "—" },
-    { id: "cap", header: t("fac.capacity"), align: "right", cell: (x) => (x.capacity ?? "—") },
+    { id: "status", header: t("fac.status"), cell: (x) => (x.kind === "jail_center" || x.status !== "unverified" ? (<>
+      <Chip tone={x.status === "operational" ? "approved" : x.status === "unverified" ? "draft" : "bad"}>{t(`fac.status.${x.status}` as never)}</Chip>
+      {x.over_capacity && <> <Chip tone="bad">{t("fac.overCapacity")}</Chip></>}</>) : <Chip tone="draft">{t("fac.status.unverified")}</Chip>) },
+    { id: "cap", header: t("fac.capacity"), align: "right", cell: (x) => (x.kind === "jail_center" ? `${x.capacity_effective ?? t("fac.capacityUnknown")}${x.available != null ? ` (${x.available} ${t("fac.available")})` : ""}` : (x.capacity ?? "—")) },
     { id: "now", header: `${t("fac.heldNow")} / ${t("fac.received")}`, align: "right", cell: (x) => (x.kind === "jail_center" ? x.held_now ?? 0 : x.received_total ?? 0) },
     { id: "state", header: "", cell: (x) => (
       <>{x.active ? null : <Chip tone="bad">{t("fac.off")}</Chip>}
+        {canVerify && <> <button type="button" className="secondary" onClick={() => setStatusFor(statusFor?.id === x.id ? null : x)}>{t("fac.setStatus")}</button></>}
+        {x.kind === "jail_center" && <> <button type="button" className="secondary" onClick={() => setCellsFor(cellsFor?.id === x.id ? null : x)}>{t("fac.cellsOpen")}</button></>}
         {canEdit && <> <button type="button" className="secondary" onClick={() => void post(`/custody-facilities/${x.id}/edit/`, { version: x.version, active: !x.active })}>{x.active ? t("fac.switchOff") : t("fac.switchOn")}</button></>}</>) },
   ];
 
@@ -56,6 +68,7 @@ export function CustodyFacilities() {
       <section className="card">
         <h3>{t("fac.explainJailTitle")}</h3>
         <p>{t("fac.explainJail")}</p>
+        <p className="muted">{t("fac.verifyHelp")}</p>
         <h3>{t("fac.explainPrisonTitle")}</h3>
         <p>{t("fac.explainPrison")}</p>
       </section>
@@ -86,6 +99,29 @@ export function CustodyFacilities() {
           <button type="submit">{t("fac.save")}</button>
         </form>
       )}
+      {statusFor && (
+        <form className="card" onSubmit={(e) => { e.preventDefault(); const f = e.currentTarget; void post(`/custody-facilities/${statusFor.id}/set_status/`, { version: statusFor.version, ...clean(Object.fromEntries(new FormData(f).entries())) }).then((ok) => { if (ok) setStatusFor(null); }); }}>
+          <h3>{name(statusFor)}</h3>
+          <Field label={t("fac.status")}><select name="status" defaultValue="operational">{["operational", "suspended", "closed"].map((k) => <option key={k} value={k}>{t(`fac.status.${k}` as never)}</option>)}</select></Field>
+          <Field label={t("fac.statusNote")}><input name="note" required maxLength={300} /></Field>
+          <button type="submit">{t("fac.save")}</button>
+        </form>)}
+      {cellsFor && (
+        <section className="card" aria-label={t("fac.cells")}>
+          <h3>{t("fac.cells")}: {name(cellsFor)}</h3>
+          {(cells.data?.results.length ?? 0) === 0 ? <p className="muted">{t("fac.noCells")}</p> : (
+            <ul>{cells.data!.results.map((c) => (
+              <li key={c.id}><strong>{c.code}</strong>{c.name ? ` · ${c.name}` : ""} · {t("fac.occupied")} {c.occupied}/{c.capacity}{c.note ? ` · ${c.note}` : ""}{c.active ? "" : ` · ${t("fac.off")}`}
+                {canEdit && <> <button type="button" className="secondary" onClick={() => void post(`/custody-facilities/${cellsFor.id}/edit_cell/`, { cell: c.id, version: c.version, active: !c.active }).then(() => cells.reload())}>{c.active ? t("fac.switchOff") : t("fac.switchOn")}</button></>}</li>))}</ul>)}
+          {canEdit && (
+            <form onSubmit={(e) => { e.preventDefault(); const f = e.currentTarget; void post(`/custody-facilities/${cellsFor.id}/add_cell/`, clean(Object.fromEntries(new FormData(f).entries()))).then((ok) => { if (ok) { f.reset(); cells.reload(); } }); }}>
+              <Field label={t("fac.cellCode")}><input name="code" required maxLength={30} /></Field>
+              <Field label={t("fac.cellName")}><input name="name" maxLength={100} /></Field>
+              <Field label={t("fac.cellCapacity")}><input name="capacity" type="number" min={1} max={1000} required inputMode="numeric" /></Field>
+              <Field label={t("fac.cellNote")}><input name="note" maxLength={200} /></Field>
+              <button type="submit">{t("fac.addCell")}</button>
+            </form>)}
+        </section>)}
       <DataTable id="custody-facilities" caption={t("fac.title")} columns={cols} rows={list.data?.results ?? []} rowKey={(x) => x.id} loading={list.loading} empty={{ title: t("fac.empty") }} />
     </>
   );

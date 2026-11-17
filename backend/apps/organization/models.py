@@ -28,6 +28,8 @@ FORMATION_ROLE_CHOICES = [
     ("regional", "Regional command"),
     ("brigade", "Brigade"),
     ("battalion", "Battalion"),
+    ("district", "District"),
+    ("station", "Police station"),
 ]
 
 

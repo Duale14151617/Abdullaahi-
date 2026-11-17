@@ -19,6 +19,7 @@ import { VehicleDetail, Vehicles } from "./pages/Vehicles";
 import { VehicleLog } from "./pages/VehicleLog";
 import { VehicleTracking } from "./pages/VehicleTracking";
 import { CustodyFacilities } from "./pages/CustodyFacilities";
+import { DetentionOversight } from "./pages/DetentionOversight";
 import { Detention } from "./pages/Detention";
 import { OccurrenceBook } from "./pages/OccurrenceBook";
 import { Tax } from "./pages/Tax";
@@ -99,6 +100,7 @@ export default function App() {
         <Route path="detention" element={<Detention />} />
         <Route path="occurrence-book" element={<OccurrenceBook />} />
         <Route path="custody-facilities" element={<CustodyFacilities />} />
+        <Route path="custody-oversight" element={<DetentionOversight />} />
         <Route path="tax" element={<Tax />} />
         <Route path="equipment" element={<Equipment />} />
         <Route path="equipment/:id" element={<EquipmentDetail />} />

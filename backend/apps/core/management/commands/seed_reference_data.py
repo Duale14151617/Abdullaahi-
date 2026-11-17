@@ -70,6 +70,7 @@ PERMISSIONS = {
     "tax.configure": "Create and edit tax types and their standard amounts (headquarters)",
     "detention.view": "View the detention register (who is held, why, since when, custody log) for units in scope; every view is audited",
     "detention.manage": "Book people into the detention register, log welfare checks and events, release or transfer them and void wrong entries for units in scope",
+    "detention.verify": "Mark a custody facility (jail center) verified as operational, temporarily out of use or closed, for units in scope; run the hierarchy check at headquarters",
     "equipment.manage": "Add and edit Equipment Reference Catalogue entries, specifications, photographs and mounted-weapon categories (headquarters)",
     "equipment.verify": "Mark a catalogue entry verified or needs-review; cannot verify an entry one entered oneself (super administrator)",
     "attendance.view": "View attendance and absence records and summaries for personnel in scope",
@@ -211,11 +212,11 @@ ROLES = {
     # personnel status, ammunition issued and remaining). Assigned per unit; link it to the command appointment so that it ends with it.
     "unit_commander": ("Unit commander (Taliye Koox)", "Taliyaha cutubka (Taliye Koox)", False, False,
                        ["unit"], BASIC + ["personnel.view", "attendance.view", "attendance.record", "reports.view", "reports.submit",
-                                          "logistics.view", "logistics.restricted", "weapons.view", "vehicles.view", "vehicles.position", "detention.view"]),
+                                          "logistics.view", "logistics.restricted", "weapons.view", "vehicles.view", "vehicles.position", "detention.view", "detention.manage"]),
     # Taliye Qaybeed: sees what the heads of the Guuto and Urur in the region have posted (reports, attendance, personnel). Assigned at the
     # regional command (a Qayb). View only: reviewing or approving the reports is a separate authority.
     "regional_commander": ("Regional commander (Taliye Qaybeed)", "Taliyaha Qaybta (Taliye Qaybeed)", True, False, ["branch_command"],
-                           BASIC + ["personnel.view", "attendance.view", "reports.view"]),
+                           BASIC + ["personnel.view", "attendance.view", "reports.view", "detention.view", "detention.verify"]),
     # Armourer / weapons custodian: runs the weapon register. Holds the restricted-asset rights it needs to issue and return, and no
     # personnel permission (the issue screen uses a minimal lookup). Privileged: requires MFA like the other restricted roles.
     "weapons_custodian": ("Weapons custodian", "Ilaaliyaha hubka", True, False, ["branch_command", "unit"],
@@ -227,7 +228,7 @@ ROLES = {
     "vehicle_disposal_approver": ("Vehicle disposal approver", "Ansixiyaha ka saarista gaadiidka", True, False, ["headquarters", "region", "branch_command"],
                                   BASIC + ["vehicles.view", "vehicles.approve"]),
     # Custody officer: keeps the detention register for the stations in the assignment. Privileged (MFA): the register holds personal data
-    # about people held. Station commanders can read it (unit_commander); only this role and the headquarters administrator write to it.
+    # about people held. Station commanders (unit_commander) and this role manage their own station's register; district and regional commanders read it for their jurisdiction.
     # Tax collection: the collector registers vehicles, records receipts and hands cash over; a different person (finance) counts and confirms it.
     # Both are privileged (MFA) because they handle cash records.
     "tax_collector": ("Tax collector", "Aruuriyaha canshuurta", True, False, ["region", "branch_command", "unit"],

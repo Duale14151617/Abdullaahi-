@@ -102,7 +102,8 @@ class AccessTests(DetentionBase):
         self.assertEqual(len(self.nugaal.get(URL).data["results"]), 0)
         self.assertEqual(self.book(c=self.nugaal, unit=self.unit_a).status_code, 400)  # cannot book into another region's station
         self.assertEqual(self.cmdr.get(URL).status_code, 200)  # station commander reads
-        self.assertEqual(self.book(c=self.cmdr).status_code, 403)  # but does not write
+        self.assertEqual(self.book(c=self.cmdr).status_code, 201)  # and manages the register of their own station
+        self.assertEqual(self.book(c=self.cmdr, unit=self.unit_b).status_code, 400)  # but not another station's
         self.assertEqual(self.member.get(URL).status_code, 403)
 
     def test_reads_are_audited_without_personal_data(self):

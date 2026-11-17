@@ -32,7 +32,7 @@ const NAV_SECTIONS: { key: string; title?: Key; to: string[] }[] = [
   { key: "pay", title: "nav.group.pay", to: ["/payroll", "/survivors"] },
   { key: "reporting", title: "nav.group.reporting", to: ["/reports", "/summary", "/analytics", "/tasks"] },
   { key: "logistics", title: "nav.group.logistics", to: ["/logistics", "/ammunition", "/ppe", "/weapons", "/vehicles", "/food"] },
-  { key: "custody", title: "nav.group.custody", to: ["/detention", "/occurrence-book", "/custody-facilities"] },
+  { key: "custody", title: "nav.group.custody", to: ["/detention", "/occurrence-book", "/custody-facilities", "/custody-oversight"] },
   { key: "revenue", title: "nav.group.revenue", to: ["/tax"] },
   { key: "admin", title: "nav.group.admin", to: ["/users", "/integrations", "/audit"] },
 ];
@@ -62,6 +62,7 @@ export function Layout() {
     { to: "/detention", icon: "lock", label: "nav.detention", show: can("detention.view") },
     { to: "/occurrence-book", icon: "list", label: "nav.occurrence", show: can("detention.view") },
     { to: "/custody-facilities", icon: "building", label: "nav.facilities", show: can("detention.view") },
+    { to: "/custody-oversight", icon: "building", label: "nav.oversight", show: can("detention.view") },
     { to: "/tax", icon: "list", label: "nav.tax", show: can("tax.view") },
     { to: "/payroll", icon: "list", label: "nav.payroll", show: can("payroll.view") },
     { to: "/survivors", icon: "users", label: "nav.survivors", show: can("survivor.view") },

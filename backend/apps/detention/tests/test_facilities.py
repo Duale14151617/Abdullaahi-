@@ -9,9 +9,9 @@ class FacilityTests(DetentionBase):
     def setUp(self):
         super().setUp()
         self.admin = self.client_for(self.make_user("fac_adm", "hq_admin"))
-        self.jail = CustodyFacility.objects.create(code="A-JAIL", kind="jail_center", org_unit=self.unit_a, name_en="Jail A")
-        self.jail_b = CustodyFacility.objects.create(code="B-JAIL", kind="jail_center", org_unit=self.unit_b, name_en="Jail B")
-        self.prison = CustodyFacility.objects.create(code="PRISON-X", kind="prison", name_en="X Prison")
+        self.jail = CustodyFacility.objects.create(code="A-JAIL", kind="jail_center", org_unit=self.unit_a, name_en="Jail A", status="operational")
+        self.jail_b = CustodyFacility.objects.create(code="B-JAIL", kind="jail_center", org_unit=self.unit_b, name_en="Jail B", status="operational")
+        self.prison = CustodyFacility.objects.create(code="PRISON-X", kind="prison", name_en="X Prison", status="operational")
 
     def test_a_jail_center_needs_a_station_and_a_prison_must_have_none(self):
         from django.db import IntegrityError, transaction

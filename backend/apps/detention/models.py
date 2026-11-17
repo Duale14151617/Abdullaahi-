@@ -22,6 +22,11 @@ class DetentionCounter(models.Model):
         db_table = "detention_counters"
 
 
+def id_key(value):
+    """Normal form of an ID / document number for duplicate detection: upper case letters and digits only."""
+    return "".join(ch for ch in (value or "").upper() if ch.isalnum())[:80]
+
+
 class CustodyFacility(models.Model):
     """A place where people are held. Two kinds, kept apart on purpose:
 
@@ -37,6 +42,12 @@ class CustodyFacility(models.Model):
         JAIL_CENTER = "jail_center", "Jail center (police lock-up)"
         PRISON = "prison", "Prison"
 
+    class Status(models.TextChoices):
+        UNVERIFIED = "unverified", "Not verified"
+        OPERATIONAL = "operational", "Operational"
+        SUSPENDED = "suspended", "Temporarily out of use"
+        CLOSED = "closed", "Closed"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=64, unique=True)
     kind = models.CharField(max_length=12, choices=Kind.choices)
@@ -47,6 +58,12 @@ class CustodyFacility(models.Model):
     capacity = models.PositiveIntegerField(null=True, blank=True)
     operated_by = models.CharField(max_length=150, blank=True)
     active = models.BooleanField(default=True)
+    # Real operating status. A record created automatically (or by anyone) is UNVERIFIED: it proves nothing about the building.
+    # Only a person with detention.verify for the station marks it operational, after checking it on the ground.
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.UNVERIFIED)
+    status_note = models.CharField(max_length=300, blank=True)
+    status_at = models.DateTimeField(null=True, blank=True)
+    status_by_username = models.CharField(max_length=150, blank=True)
     version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -61,6 +78,36 @@ class CustodyFacility(models.Model):
 
     def delete(self, *args, **kwargs):
         raise AppendOnlyError("Facilities cannot be deleted; switch them off instead.")
+
+    @property
+    def usable(self):
+        """Can people be placed here today: switched on and verified as operational."""
+        return self.active and self.status == self.Status.OPERATIONAL
+
+
+class CustodyCell(models.Model):
+    """One cell (or holding room) of a jail center, with the number of people it may hold. Cells are optional: a facility with none
+    is tracked by its overall capacity only. Never deleted; a cell that is no longer used is switched off."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    facility = models.ForeignKey(CustodyFacility, on_delete=models.PROTECT, related_name="cells")
+    code = models.CharField(max_length=30)
+    name = models.CharField(max_length=100, blank=True)
+    capacity = models.PositiveSmallIntegerField()
+    note = models.CharField(max_length=200, blank=True)  # e.g. women only, juveniles, medical observation
+    active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "custody_cells"
+        ordering = ["facility", "code"]
+        constraints = [models.UniqueConstraint(fields=["facility", "code"], name="cell_unique_code_per_facility"),
+                       models.CheckConstraint(condition=models.Q(capacity__gte=1), name="cell_capacity_positive")]
+
+    def delete(self, *args, **kwargs):
+        raise AppendOnlyError("Cells cannot be deleted; switch them off instead.")
 
 
 class DetentionRecord(models.Model):
@@ -104,14 +151,25 @@ class DetentionRecord(models.Model):
     reason = models.CharField(max_length=300)  # offence or ground for holding
     authority_ref = models.CharField(max_length=150, blank=True)  # warrant / court order / prosecutor instruction number
     cell = models.CharField(max_length=60, blank=True)
+    cell_ref = models.ForeignKey(CustodyCell, null=True, blank=True, on_delete=models.PROTECT, related_name="records")
     facility = models.ForeignKey(CustodyFacility, null=True, blank=True, on_delete=models.PROTECT, related_name="records")  # the jail center holding the person
     destination_facility = models.ForeignKey(CustodyFacility, null=True, blank=True, on_delete=models.PROTECT, related_name="received")  # the prison, on hand-over
     property_held = models.CharField(max_length=500, blank=True)
     health_note = models.CharField(max_length=300, blank=True)
+    # id_ref in a normalised form (upper case, letters and digits only) while the person is in custody, "" otherwise. The database allows
+    # one in-custody row per key, so the same person cannot be held twice (at this or any other station).
+    id_ref_key = models.CharField(max_length=80, blank=True, editable=False)
+    last_review_at = models.DateTimeField(null=True, blank=True)  # latest custody review; the review clock restarts from it
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.IN_CUSTODY)
     ended_at = models.DateTimeField(null=True, blank=True)
     outcome = models.CharField(max_length=20, choices=Outcome.choices, blank=True)
     destination = models.CharField(max_length=200, blank=True)  # receiving station / court / prison for a transfer
+    destination_unit = models.ForeignKey("organization.OrganizationalUnit", null=True, blank=True, on_delete=models.PROTECT, related_name="incoming_detentions")
+    outcome_ref = models.CharField(max_length=150, blank=True)  # court / bail / transfer order reference for the outcome
+    # A station-to-station transfer is two steps: the sending station closes its record as "transferred" naming the receiving station,
+    # and the receiving station then receives the person, which opens a new record pointing back here. Only once.
+    received_at = models.DateTimeField(null=True, blank=True)  # set on the receiving station's record; booked_at stays the original arrest booking
+    transferred_from = models.OneToOneField("self", null=True, blank=True, on_delete=models.PROTECT, related_name="received_as")
     outcome_note = models.CharField(max_length=300, blank=True)
     created_by_username = models.CharField(max_length=150, blank=True)
     ended_by_username = models.CharField(max_length=150, blank=True)
@@ -128,7 +186,8 @@ class DetentionRecord(models.Model):
         indexes = [models.Index(fields=["org_unit", "status", "-booked_at"], name="det_unit_status_idx"),
                    models.Index(fields=["status", "-booked_at"], name="det_status_idx")]
         constraints = [models.CheckConstraint(condition=models.Q(ended_at__isnull=True) | models.Q(ended_at__gte=models.F("booked_at")),
-                                              name="det_end_after_booking")]
+                                              name="det_end_after_booking"),
+                       models.UniqueConstraint(fields=["id_ref_key"], condition=~models.Q(id_ref_key=""), name="det_one_active_custody_per_id")]
 
     def delete(self, *args, **kwargs):
         raise AppendOnlyError("Detention register rows cannot be deleted.")
@@ -144,6 +203,8 @@ class DetentionEvent(AppendOnlyModel):
         PROPERTY = "property", "Property"
         STATEMENT = "statement", "Statement / interview"
         NOTE = "note", "Note"
+        REVIEW = "review", "Custody review"
+        RECEIVED = "received", "Received from another station"
         RELEASED = "released", "Released"
         TRANSFERRED = "transferred", "Transferred"
         CORRECTED = "corrected", "Details corrected"

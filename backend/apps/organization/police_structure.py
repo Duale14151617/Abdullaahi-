@@ -41,8 +41,8 @@ TYPES = [
     ("POLICE_DIRECTORATE", "Hogganka", "Directorate", 2, "POLICE_HQ", ""),
     ("POLICE_REGION", "Taliska Gobolka", "Regional command", 3, "POLICE_HQ", "regional"),
     ("POLICE_SECTION", "Waax", "Section", 4, "POLICE_REGION", ""),
-    ("POLICE_DISTRICT", "Degmo", "District", 4, "POLICE_REGION", ""),
-    ("POLICE_STATION", "Saldhig", "Police station", 5, "POLICE_DISTRICT", ""),
+    ("POLICE_DISTRICT", "Degmo", "District", 4, "POLICE_REGION", "district"),
+    ("POLICE_STATION", "Saldhig", "Police station", 5, "POLICE_DISTRICT", "station"),
     ("POLICE_KOOX", "Koox", "Koox (team)", 6, "POLICE_STATION", ""),
 ]
 # code, Somali, English, unit type, role
@@ -55,6 +55,14 @@ APPOINTMENTS = [
     ("POLICE_STATION_DEPUTY", "Ku-xigeenka Taliyaha Saldhigga", "Deputy station commander", "POLICE_STATION", "deputy"),
 ]
 KOOXO_PER_STATION = 2
+# Departments a district or station runs, beside Command and Administration, HR and Logistics (already in the catalogue).
+# code, English, Somali (working labels to confirm with the Police), restricted roster, sort order
+STATION_DEPARTMENT_DEFS = [
+    ("OPERATIONS", "Operations and Duty Office", "Hawlgalka iyo Xafiiska Shaqada", False, 80),
+    ("INVESTIGATION", "Investigation (CID)", "Baarista Dambiyada (CID)", False, 85),
+    ("CUSTODY", "Custody and Jail", "Xarunta Jeelka iyo Haynta", False, 90),
+    ("COMMUNITY", "Community Policing", "Booliska Bulshada", False, 95),
+]
 # Two generic police stations (Jeelka) under EVERY regional command, so each region starts with somewhere to book detainees and post
 # officers. code suffix, English, Somali. Real stations are added with the normal unit tools; these are placeholders to rename.
 STATIONS = [
@@ -102,8 +110,19 @@ def apply(OU, UnitType, ServiceBranch, AppointmentType, dry_run=True):
             ServiceBranch.objects.filter(pk=branch.pk).update(name_en="Police", name_so="Booliska")
 
     types = {t.code: t for t in UnitType.objects.all()}
+    from apps.organization.models import Department
+    for code, en, so, restricted, order in STATION_DEPARTMENT_DEFS:
+        if not Department.objects.filter(code=code).exists():
+            out.append(("create_department", code))
+            if not dry_run:
+                Department.objects.create(code=code, name_en=en, name_so=so, restricted_roster=restricted, sort_order=order)
     for code, so, en, tier, parent, role in TYPES:
         if code in types:
+            t = types[code]
+            if role and not t.formation_role:  # only fills a blank: an administrator's own choice is never overwritten
+                out.append(("set_formation_role", f"{code} -> {role}"))
+                if not dry_run:
+                    UnitType.objects.filter(pk=t.pk).update(formation_role=role, version=F("version") + 1, updated_at=timezone.now())
             continue
         out.append(("create_type", code))
         if not dry_run:

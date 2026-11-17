@@ -21,6 +21,7 @@ from apps.vehicles.views import VehicleViewSet
 from apps.vehicles.logbook import VehicleLogViewSet
 from apps.vehicles.tracking import TrackerFeedView, VehicleTrackingViewSet
 from apps.detention.facility_views import CustodyFacilityViewSet
+from apps.detention.oversight import DetentionOversightViewSet
 from apps.detention.views import DetentionViewSet
 from apps.occurrence.views import OccurrenceViewSet
 from apps.tax.views import TaxViewSet
@@ -79,6 +80,7 @@ router.register("ppe", PpeViewSet, basename="ppe")
 router.register("vehicle-log", VehicleLogViewSet, basename="vehicle-log")
 router.register("vehicle-tracking", VehicleTrackingViewSet, basename="vehicle-tracking")
 router.register("detention", DetentionViewSet, basename="detention")
+router.register("detention-oversight", DetentionOversightViewSet, basename="detention-oversight")
 router.register("custody-facilities", CustodyFacilityViewSet, basename="custody-facility")
 router.register("occurrence-book", OccurrenceViewSet, basename="occurrence-book")
 router.register("tax", TaxViewSet, basename="tax")

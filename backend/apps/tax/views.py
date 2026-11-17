@@ -246,7 +246,7 @@ def confirm_handover(request, row, d, version):
         raise VersionConflict()
     if h.status != Ho.Status.SUBMITTED:
         raise field_error("state", "already_confirmed", "This handover was already counted.")
-    if h.handed_by_username == _actor(request):
+    if h.handed_by_username == _actor(request) and not scope.self_approval_allowed(request.user, "tax_handover", request, "cash_handover", h.pk):
         raise field_error("state", "own_handover", "Cash must be counted by someone other than the person who handed it over.")
     if d.get("counted_amount") in (None, ""):
         raise field_error("counted_amount", "required", "Enter the cash counted.")

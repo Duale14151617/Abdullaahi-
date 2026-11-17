@@ -64,6 +64,7 @@ class CustodyFacility(models.Model):
     status_note = models.CharField(max_length=300, blank=True)
     status_at = models.DateTimeField(null=True, blank=True)
     status_by_username = models.CharField(max_length=150, blank=True)
+    last_edited_by_username = models.CharField(max_length=150, blank=True)  # who created or last changed the record (empty: made by the system); that person cannot verify it
     version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

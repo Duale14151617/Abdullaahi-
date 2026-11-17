@@ -64,6 +64,18 @@ class FacilityStatusTests(UnitBase):
         self.assertTrue(self.audit("detention.facility_status"))
         self.assertEqual(self.make()["facility"]["code"], "A-JAIL")
 
+    def test_whoever_created_or_changed_a_facility_cannot_verify_it_except_the_super_administrator(self):
+        admin = self.client_for(self.make_user("fac_maker", "hq_admin"))
+        made = admin.post(FAC, {"kind": "jail_center", "org_unit": str(self.unit_a.pk), "code": "A-JAIL-2", "name_en": "Second"}, format="json")
+        self.assertEqual(made.status_code, 201, made.data)
+        body = {"status": "operational", "note": "Inspected", "version": made.data["version"]}
+        self.assertEqual(admin.post(f"{FAC}{made.data['id']}/set_status/", body, format="json").status_code, 400)  # own work
+        self.assertEqual(self.regional.post(f"{FAC}{made.data['id']}/set_status/", body, format="json").status_code, 200)  # someone else
+        boss = self.client_for(self.make_user("fac_boss", "super_admin"))
+        mine = boss.post(FAC, {"kind": "jail_center", "org_unit": str(self.unit_b.pk), "code": "B-JAIL-2", "name_en": "Boss"}, format="json")
+        self.assertEqual(boss.post(f"{FAC}{mine.data['id']}/set_status/", {"status": "operational", "note": "Checked", "version": mine.data["version"]}, format="json").status_code, 200)
+        self.assertTrue(self.audit("self_approval.used"))
+
     def test_a_facility_with_people_in_it_cannot_be_closed(self):
         self.make()
         r = self.regional.post(f"{FAC}{self.jail_a.pk}/set_status/", {"status": "closed", "note": "x", "version": 1}, format="json")

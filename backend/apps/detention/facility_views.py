@@ -119,7 +119,8 @@ class CustodyFacilityViewSet(viewsets.GenericViewSet):
             with transaction.atomic():
                 f = F.objects.create(code=code, kind=kind, org_unit=unit, name_en=_text(d, "name_en", 150, required=True), name_so=_text(d, "name_so", 150),
                                      location=_text(d, "location", 200), capacity=_capacity(d),
-                                     operated_by=_text(d, "operated_by", 150) or ("Police" if kind == "jail_center" else ""))
+                                     operated_by=_text(d, "operated_by", 150) or ("Police" if kind == "jail_center" else ""),
+                                     last_edited_by_username=request.user.username)
         except IntegrityError:
             raise field_error("code", "duplicate", "This code is already used.")
         record("detention.facility_create", request=request, entity_type="custody_facility", entity_id=f.pk, metadata={"code": f.code, "kind": f.kind})
@@ -152,6 +153,7 @@ class CustodyFacilityViewSet(viewsets.GenericViewSet):
                 changed.append("active")
             if changed:
                 f.version += 1
+                f.last_edited_by_username = request.user.username
                 f.save()
                 record("detention.facility_edit", request=request, entity_type="custody_facility", entity_id=f.pk, metadata={"code": f.code, "fields": changed})
         return Response(_out(F.objects.select_related("org_unit").annotate(held_now=Count("records", filter=Q(records__status="in_custody"), distinct=True),
@@ -184,6 +186,8 @@ class CustodyFacilityViewSet(viewsets.GenericViewSet):
                 raise field_error("status", "inactive", "Switch the facility on before marking it operational.")
             if new != F.Status.OPERATIONAL and f.records.filter(status="in_custody").exists():
                 raise field_error("status", "in_use", "People are still held here. Move or release them first.")
+            if f.last_edited_by_username == request.user.username and not scope.self_approval_allowed(request.user, "facility_verification", request, "custody_facility", f.pk):
+                raise field_error("status", "own_entry", "A different authorised person must verify a facility you created or last changed.")
             old = f.status
             f.status, f.status_note, f.status_at, f.status_by_username = new, note, timezone.now(), request.user.username
             f.version += 1

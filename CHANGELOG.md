@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Custody menu tidy:** Custody facilities, oversight and incidents now show in the menu only for people who can verify facilities or review incidents (regional commanders, HQ); the Offline desk shows only for people who can book in. Menu only: server permissions and station scoping are unchanged, and the pages still open by direct link for anyone who was allowed before.
+
+
 - **Remove a rejected structure change:** a draft or rejected proposal can be cleared from the list by someone who can propose or approve structure changes. Submitted and approved ones cannot (nothing was ever applied for drafts and rejected ones); the removal is audited.
 
 

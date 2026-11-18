@@ -90,12 +90,20 @@ class CustodyCell(models.Model):
     """One cell (or holding room) of a jail center, with the number of people it may hold. Cells are optional: a facility with none
     is tracked by its overall capacity only. Never deleted; a cell that is no longer used is switched off."""
 
+    class ReservedFor(models.TextChoices):
+        ANY = "any", "Anyone"
+        WOMEN = "women", "Women only"
+        JUVENILES = "juveniles", "Juveniles only"
+        MEN = "men", "Adult men only"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     facility = models.ForeignKey(CustodyFacility, on_delete=models.PROTECT, related_name="cells")
     code = models.CharField(max_length=30)
     name = models.CharField(max_length=100, blank=True)
     capacity = models.PositiveSmallIntegerField()
-    note = models.CharField(max_length=200, blank=True)  # e.g. women only, juveniles, medical observation
+    note = models.CharField(max_length=200, blank=True)  # e.g. medical observation
+    # Who the cell is meant for. Set by the administration; the system only WARNS when someone else is placed there, it never blocks.
+    reserved_for = models.CharField(max_length=10, choices=ReservedFor.choices, default=ReservedFor.ANY)
     active = models.BooleanField(default=True)
     version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -131,9 +139,10 @@ class DetentionRecord(models.Model):
         TRANSFER_STATION = "transfer_station", "Transferred to another station"
         TRANSFER_COURT = "transfer_court", "Handed to the court"
         TRANSFER_PRISON = "transfer_prison", "Handed to the prison"
+        DIED = "died_in_custody", "Died in custody"
         OTHER = "other", "Other"
 
-    RELEASE_OUTCOMES = ("no_charge", "bail", "court_order", "sentence_served", "other")
+    RELEASE_OUTCOMES = ("no_charge", "bail", "court_order", "sentence_served", "died_in_custody", "other")
     TRANSFER_OUTCOMES = ("transfer_station", "transfer_court", "transfer_prison")
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -164,6 +173,10 @@ class DetentionRecord(models.Model):
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.IN_CUSTODY)
     ended_at = models.DateTimeField(null=True, blank=True)
     outcome = models.CharField(max_length=20, choices=Outcome.choices, blank=True)
+    case_ref = models.CharField(max_length=80, blank=True)  # case / investigation file number
+    charge = models.CharField(max_length=300, blank=True)  # recorded once a charge exists
+    charged_at = models.DateTimeField(null=True, blank=True)
+    charged_by_username = models.CharField(max_length=150, blank=True)
     destination = models.CharField(max_length=200, blank=True)  # receiving station / court / prison for a transfer
     destination_unit = models.ForeignKey("organization.OrganizationalUnit", null=True, blank=True, on_delete=models.PROTECT, related_name="incoming_detentions")
     outcome_ref = models.CharField(max_length=150, blank=True)  # court / bail / transfer order reference for the outcome
@@ -205,6 +218,9 @@ class DetentionEvent(AppendOnlyModel):
         STATEMENT = "statement", "Statement / interview"
         NOTE = "note", "Note"
         REVIEW = "review", "Custody review"
+        COURT = "court", "Court"
+        CHARGE = "charge", "Charge recorded"
+        INCIDENT = "incident", "Custody incident"
         RECEIVED = "received", "Received from another station"
         RELEASED = "released", "Released"
         TRANSFERRED = "transferred", "Transferred"
@@ -223,3 +239,81 @@ class DetentionEvent(AppendOnlyModel):
         db_table = "detention_events"
         ordering = ["occurred_at", "created_at"]
         indexes = [models.Index(fields=["record", "occurred_at"], name="detevt_record_idx")]
+
+
+class CourtHearing(models.Model):
+    """A court date, remand order or bail hearing for a person in the register. The system only RECORDS what the court or prosecutor
+    ordered and flags dates that are near or passed; it sets no legal limit of its own. Never deleted: a hearing that does not happen
+    is marked cancelled or adjourned."""
+
+    class Purpose(models.TextChoices):
+        HEARING = "hearing", "Court hearing"
+        REMAND = "remand", "Remand order"
+        BAIL = "bail", "Bail hearing"
+        SENTENCING = "sentencing", "Sentencing"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        SCHEDULED = "scheduled", "Scheduled"
+        HELD = "held", "Held"
+        ADJOURNED = "adjourned", "Adjourned"
+        CANCELLED = "cancelled", "Cancelled"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    record = models.ForeignKey(DetentionRecord, on_delete=models.PROTECT, related_name="hearings")
+    purpose = models.CharField(max_length=12, choices=Purpose.choices, default=Purpose.HEARING)
+    hearing_at = models.DateTimeField(null=True, blank=True)  # next court date (a remand order may have only an end date)
+    court = models.CharField(max_length=200, blank=True)
+    ordered_by = models.CharField(max_length=200, blank=True)  # judge / prosecutor who ordered it
+    order_ref = models.CharField(max_length=150, blank=True)
+    remand_until = models.DateField(null=True, blank=True)  # the date the remand order runs to, as written in the order
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.SCHEDULED)
+    note = models.CharField(max_length=300, blank=True)
+    created_by_username = models.CharField(max_length=150, blank=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "detention_hearings"
+        ordering = ["hearing_at", "created_at"]
+        indexes = [models.Index(fields=["record", "hearing_at"], name="dethear_record_idx")]
+
+    def delete(self, *args, **kwargs):
+        raise AppendOnlyError("Court hearings cannot be deleted; mark them cancelled instead.")
+
+
+class CustodyIncident(models.Model):
+    """A death, injury or use of force involving a person in custody. Reported by the station, read by the commanders above it, and
+    reviewed by a regional authority (detention.incident_review), who cannot review their own report. The report itself is never
+    edited or deleted; the review is added to it."""
+
+    class Kind(models.TextChoices):
+        DEATH = "death", "Death in custody"
+        INJURY = "injury", "Injury"
+        FORCE = "use_of_force", "Use of force"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    record = models.ForeignKey(DetentionRecord, on_delete=models.PROTECT, related_name="incidents")
+    org_unit = models.ForeignKey("organization.OrganizationalUnit", on_delete=models.PROTECT, related_name="custody_incidents")
+    kind = models.CharField(max_length=12, choices=Kind.choices)
+    occurred_at = models.DateTimeField()
+    place = models.CharField(max_length=200, blank=True)
+    description = models.CharField(max_length=1000)
+    people_involved = models.CharField(max_length=300, blank=True)  # staff / officers involved, as names or service numbers
+    medical_attended = models.BooleanField(default=False)
+    medical_note = models.CharField(max_length=300, blank=True)
+    reported_by_username = models.CharField(max_length=150, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by_username = models.CharField(max_length=150, blank=True)
+    review_note = models.CharField(max_length=500, blank=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "custody_incidents"
+        ordering = ["-occurred_at"]
+        indexes = [models.Index(fields=["org_unit", "-occurred_at"], name="custinc_unit_idx")]
+
+    def delete(self, *args, **kwargs):
+        raise AppendOnlyError("Custody incident reports cannot be deleted.")

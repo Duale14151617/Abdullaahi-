@@ -62,3 +62,30 @@ class PoliceSampleTests(TestCase):
     def test_refused_outside_sample_mode(self):
         with self.assertRaises(CommandError):
             call_command("seed_police_sample", stdout=StringIO())
+
+    def test_sample_stations_are_preapproved_with_cells_and_every_detainee_in_custody_has_a_cell(self):
+        from apps.detention.models import CustodyCell, CustodyFacility
+        for st in self.stations():
+            fac = CustodyFacility.objects.get(org_unit=st, kind="jail_center")
+            self.assertEqual(fac.status, "operational", st.code)
+            self.assertIn("NOT verified on site", fac.status_note)  # honest about what it is
+            self.assertEqual(CustodyCell.objects.filter(facility=fac).count(), 3, st.code)
+            held = DetentionRecord.objects.filter(org_unit=st, status="in_custody")
+            self.assertTrue(held.exists())
+            self.assertFalse(held.filter(cell_ref__isnull=True).exists(), st.code)
+            for r in held:
+                self.assertEqual(r.cell, r.cell_ref.code)
+                if r.sex == "female":
+                    self.assertEqual(r.cell_ref.reserved_for, "women")
+                self.assertLessEqual(DetentionRecord.objects.filter(cell_ref=r.cell_ref, status="in_custody").count(), r.cell_ref.capacity)
+
+    def test_preapproval_is_idempotent_and_respects_closed_facilities(self):
+        from apps.detention.models import CustodyCell, CustodyFacility
+        st = self.stations().first()
+        fac = CustodyFacility.objects.get(org_unit=st, kind="jail_center")
+        before = (CustodyCell.objects.count(), DetentionRecord.objects.filter(cell_ref__isnull=False).count())
+        call_command("preapprove_custody_demo", stdout=StringIO())
+        self.assertEqual((CustodyCell.objects.count(), DetentionRecord.objects.filter(cell_ref__isnull=False).count()), before)
+        CustodyFacility.objects.filter(pk=fac.pk).update(status="closed")
+        call_command("preapprove_custody_demo", stdout=StringIO())
+        self.assertEqual(CustodyFacility.objects.get(pk=fac.pk).status, "closed")  # a deliberate decision is never overridden

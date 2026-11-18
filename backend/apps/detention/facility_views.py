@@ -42,7 +42,14 @@ def _out(f, st=None):
 
 def _cell_out(c, held=0):
     return {"id": str(c.pk), "facility": str(c.facility_id), "code": c.code, "name": c.name, "capacity": c.capacity, "note": c.note,
-            "active": c.active, "occupied": held, "available": max(c.capacity - held, 0), "version": c.version}
+            "active": c.active, "reserved_for": c.reserved_for, "occupied": held, "available": max(c.capacity - held, 0), "version": c.version}
+
+
+def _reserved(d):
+    v = d.get("reserved_for") or "any"
+    if v not in {k for k, _ in C.ReservedFor.choices}:
+        raise field_error("reserved_for", "invalid_choice", "Choose anyone, women only, juveniles only or adult men only.")
+    return v
 
 
 def _cell_capacity(d):
@@ -214,7 +221,7 @@ class CustodyFacilityViewSet(viewsets.GenericViewSet):
             raise field_error("code", "duplicate", "This cell code is already used in this jail center.")
         try:
             with transaction.atomic():
-                c = C.objects.create(facility=f, code=code, name=_text(d, "name", 100), note=_text(d, "note", 200), capacity=_cell_capacity(d))
+                c = C.objects.create(facility=f, code=code, name=_text(d, "name", 100), note=_text(d, "note", 200), capacity=_cell_capacity(d), reserved_for=_reserved(d))
         except IntegrityError:
             raise field_error("code", "duplicate", "This cell code is already used in this jail center.")
         record("detention.cell_create", request=request, entity_type="custody_cell", entity_id=c.pk, metadata={"facility": f.code, "code": c.code, "capacity": c.capacity})
@@ -239,6 +246,9 @@ class CustodyFacilityViewSet(viewsets.GenericViewSet):
                 if name in d and _text(d, name, limit) != getattr(c, name):
                     setattr(c, name, _text(d, name, limit))
                     changed.append(name)
+            if "reserved_for" in d and _reserved(d) != c.reserved_for:
+                c.reserved_for = _reserved(d)
+                changed.append("reserved_for")
             if "capacity" in d and _cell_capacity(d) != c.capacity:
                 if _cell_capacity(d) < held:
                     raise field_error("capacity", "below_occupancy", f"{held} people are in this cell now.")

@@ -231,6 +231,10 @@ ENABLE_API_DOCS = env_bool("ENABLE_API_DOCS", DEBUG)
 TAX_CURRENCY = os.environ.get("TAX_CURRENCY", "USD").strip().upper()[:3] or "USD"
 DETENTION_REVIEW_HOURS = int(os.environ.get("DETENTION_REVIEW_HOURS", "48"))  # review alert interval, set by the administration; not a legal limit
 # 1 = refuse a booking at a station that has no verified, operational jail center (default: record the arrest and flag it on the dashboard)
+# Court-date reminder window (days) and the age below which a person counts as a juvenile for the cell warnings. Both are decided by the
+# institution: the juvenile age is EMPTY (rule off) until you set it.
+DETENTION_COURT_REMINDER_DAYS = int(os.environ.get("DETENTION_COURT_REMINDER_DAYS", "2"))
+DETENTION_JUVENILE_UNDER_AGE = os.environ.get("DETENTION_JUVENILE_UNDER_AGE", "")
 DETENTION_REQUIRE_OPERATIONAL_FACILITY = os.environ.get("DETENTION_REQUIRE_OPERATIONAL_FACILITY", "0") == "1"
 PERSONNEL_EXPORT_ENABLED = env_bool("PERSONNEL_EXPORT_ENABLED", False)
 

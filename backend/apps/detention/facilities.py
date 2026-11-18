@@ -7,7 +7,7 @@ Idempotent: it only creates what is missing and never touches a name an administ
 from apps.organization import police_structure as ps
 from apps.organization.models import OrganizationalUnit
 
-from .models import CustodyFacility
+from .models import CustodyCell, CustodyFacility, DetentionEvent, DetentionRecord
 
 PRISON_AUTHORITY = "Prison authority (not the Police)"
 
@@ -43,3 +43,50 @@ def ensure_defaults():
                                            status="unverified", status_note="Generic placeholder. The real prison, its name and location are to be confirmed by the administration.")
             prisons += 1
     return jails, prisons
+
+
+# ---- demonstration set-up -------------------------------------------------------------------------------------------------
+PREAPPROVED_NOTE = "Pre-approved by the administrator for a demonstration deployment. NOT verified on site."
+DEMO_CELLS = [("C1", "Cell 1 (adult men)", 4, "men"), ("C2", "Cell 2 (women)", 2, "women"), ("C3", "Cell 3 (general)", 4, "any")]  # sample sizes only
+
+
+def preapprove_demo(stations=None, actor="system"):
+    """For SAMPLE / demonstration deployments only: mark the stations' not-yet-verified jail centers operational, give each three sample
+    cells, and place everyone in custody who has no cell into one (women in C2, men in C1, overflow in C3). Idempotent. It never touches a
+    facility an administrator has suspended or closed, never edits a verified one, and never changes a person who already has a cell.
+    The note on each record says plainly that it was pre-approved and not verified on site. Returns (verified, cells, placed)."""
+    from django.db.models import F
+    from django.utils import timezone
+
+    from apps.audit.services import record
+
+    verified = cells_made = placed = 0
+    stations = stations if stations is not None else OrganizationalUnit.objects.filter(unit_type__code="POLICE_STATION", active=True)
+    for st in stations:
+        fac, _ = ensure_jail_center(st)
+        if fac.status == CustodyFacility.Status.UNVERIFIED and fac.active:
+            fac.status, fac.status_note, fac.status_at, fac.status_by_username = "operational", PREAPPROVED_NOTE, timezone.now(), actor
+            fac.version += 1
+            fac.save()
+            record("detention.facility_status", actor=None, entity_type="custody_facility", entity_id=fac.pk, metadata={"code": fac.code, "from": "unverified", "to": "operational", "preapproved": True})
+            verified += 1
+        if not fac.usable:
+            continue
+        by_code = {}
+        for code, name, cap, reserved in DEMO_CELLS:
+            c, made = CustodyCell.objects.get_or_create(facility=fac, code=code, defaults={"name": name, "capacity": cap, "reserved_for": reserved, "note": "Sample cell"})
+            cells_made += made
+            by_code[code] = c
+
+        def room(c):
+            return c.active and DetentionRecord.objects.filter(cell_ref=c, status="in_custody").count() < c.capacity
+
+        for rec in DetentionRecord.objects.filter(org_unit=st, status="in_custody", cell_ref__isnull=True).order_by("booked_at"):
+            order = ("C2", "C3") if rec.sex == "female" else ("C1", "C3")
+            cell = next((by_code[k] for k in order if room(by_code[k])), None)
+            if cell is None:
+                continue
+            DetentionRecord.objects.filter(pk=rec.pk).update(facility=rec.facility or fac, cell_ref=cell, cell=cell.code, version=F("version") + 1)
+            DetentionEvent.objects.create(record=rec, kind="cell_move", occurred_at=timezone.now(), text=f"Placed in {cell.code} (sample set-up)", by_username=actor)
+            placed += 1
+    return verified, cells_made, placed

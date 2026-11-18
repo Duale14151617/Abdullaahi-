@@ -166,6 +166,7 @@ class Seeder:
         self.detainees_for(station, region_name, boss)
         self.ob_for(station, boss)
         self.flush_ob(station)
+        facilities.preapprove_demo([station], actor="sample")  # sample deployment: jail pre-approved, sample cells, detainees placed
 
     # ----------------------------------------------------------------------------------------------- detainees
     def detainees_for(self, station, region_name, boss):

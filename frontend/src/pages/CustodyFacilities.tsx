@@ -14,7 +14,7 @@ interface Facility {
   status: "unverified" | "operational" | "suspended" | "closed"; status_note: string; status_by: string; usable: boolean;
   capacity_effective: number | null; cells: number | null; available: number | null; over_capacity: boolean | null;
 }
-interface Cell { id: string; code: string; name: string; capacity: number; note: string; active: boolean; occupied: number; available: number; version: number }
+interface Cell { id: string; code: string; name: string; capacity: number; note: string; reserved_for: string; active: boolean; occupied: number; available: number; version: number }
 const clean = (f: Record<string, FormDataEntryValue>) => Object.fromEntries(Object.entries(f).filter(([, v]) => v !== ""));
 
 export function CustodyFacilities() {
@@ -111,13 +111,15 @@ export function CustodyFacilities() {
           <h3>{t("fac.cells")}: {name(cellsFor)}</h3>
           {(cells.data?.results.length ?? 0) === 0 ? <p className="muted">{t("fac.noCells")}</p> : (
             <ul>{cells.data!.results.map((c) => (
-              <li key={c.id}><strong>{c.code}</strong>{c.name ? ` · ${c.name}` : ""} · {t("fac.occupied")} {c.occupied}/{c.capacity}{c.note ? ` · ${c.note}` : ""}{c.active ? "" : ` · ${t("fac.off")}`}
+              <li key={c.id}><strong>{c.code}</strong>{c.name ? ` · ${c.name}` : ""} · {t("fac.occupied")} {c.occupied}/{c.capacity}{c.reserved_for !== "any" ? ` · ${t(`fac.reserved.${c.reserved_for}` as never)}` : ""}{c.note ? ` · ${c.note}` : ""}{c.active ? "" : ` · ${t("fac.off")}`}
                 {canEdit && <> <button type="button" className="secondary" onClick={() => void post(`/custody-facilities/${cellsFor.id}/edit_cell/`, { cell: c.id, version: c.version, active: !c.active }).then(() => cells.reload())}>{c.active ? t("fac.switchOff") : t("fac.switchOn")}</button></>}</li>))}</ul>)}
           {canEdit && (
             <form onSubmit={(e) => { e.preventDefault(); const f = e.currentTarget; void post(`/custody-facilities/${cellsFor.id}/add_cell/`, clean(Object.fromEntries(new FormData(f).entries()))).then((ok) => { if (ok) { f.reset(); cells.reload(); } }); }}>
               <Field label={t("fac.cellCode")}><input name="code" required maxLength={30} /></Field>
               <Field label={t("fac.cellName")}><input name="name" maxLength={100} /></Field>
               <Field label={t("fac.cellCapacity")}><input name="capacity" type="number" min={1} max={1000} required inputMode="numeric" /></Field>
+              <Field label={t("fac.reservedFor")}><select name="reserved_for" defaultValue="any">{["any", "women", "juveniles", "men"].map((k) => <option key={k} value={k}>{t(`fac.reserved.${k}` as never)}</option>)}</select></Field>
+              <p className="muted">{t("fac.reservedHelp")}</p>
               <Field label={t("fac.cellNote")}><input name="note" maxLength={200} /></Field>
               <button type="submit">{t("fac.addCell")}</button>
             </form>)}

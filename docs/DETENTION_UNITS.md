@@ -12,8 +12,17 @@ Every police station has a jail center *record*. A record is not proof that a lo
 ## Workflow
 Book in (ID duplicate check, optional cell) -> welfare / medical / visit / property / statement / **custody review** -> release (no charge, bail, court order, sentence served), hand to court, hand to a prison, or **transfer to another station** (sender closes; receiver receives once). Nothing is deleted; wrong entries are voided with a reason. Every action stores user, time, outcome and an audit event.
 
+## Court, charge, incidents, reports, printing
+* **Court dates and remand:** record what the court or prosecutor ordered; the system flags remand ended, court date passed and court soon. It sets no legal limit.
+* **Charge and case file:** recorded when it exists; Occurrence Book entries linked to the person are listed on the record.
+* **Incidents (death, injury, use of force):** reported by the station, read by every commander whose area covers it, reviewed by `detention.incident_review` (not by the reporter). A death closes the register row.
+* **Cell warnings:** women only / juveniles only / adult men only, and men with women. Warn only, never block.
+* **Reports:** period report by station, district and region, CSV or PDF. **Printing:** custody record, property receipt, release/transfer note; every print is audited.
+
 ## Settings
 * `DETENTION_REVIEW_HOURS` (default 48): review alert interval chosen by the administration. It is not a legal limit.
+* `DETENTION_COURT_REMINDER_DAYS` (default 2): how many days ahead a court date is flagged.
+* `DETENTION_JUVENILE_UNDER_AGE` (empty by default): age below which a person counts as a juvenile for cell warnings. Set only what your institution decides.
 * `DETENTION_REQUIRE_OPERATIONAL_FACILITY=1`: refuse bookings at stations without an operational jail center.
 
 ## Commands (all safe to rerun)

@@ -26,13 +26,14 @@ from apps.personnel.models import Personnel
 from apps.personnel.services import NOT_SERVING
 from apps.vehicles.views import _person_brief, _uid, _unit_brief
 
-from .models import CustodyCell, CustodyFacility, DetentionCounter, DetentionEvent, DetentionRecord, id_key
+from . import cellrules
+from .models import CourtHearing, CustodyCell, CustodyFacility, DetentionCounter, DetentionEvent, DetentionRecord, id_key
 
 R = DetentionRecord
 E = DetentionEvent
 MANUAL_EVENT_KINDS = ("welfare", "medical", "visit", "cell_move", "property", "statement", "note", "review")
 EDITABLE = {"detainee_name": 200, "detainee_alias": 200, "id_ref": 80, "address": 200, "arrest_place": 200, "arresting_officer_name": 200,
-            "reason": 300, "authority_ref": 150, "property_held": 500, "health_note": 300}  # the cell changes only through a logged cell move
+            "reason": 300, "authority_ref": 150, "case_ref": 80, "property_held": 500, "health_note": 300}  # the cell changes only through a logged cell move
 
 
 class _Page(PageNumberPagination):
@@ -115,6 +116,17 @@ def _next_number():
 
 def _log(record_row, kind, request, text="", occurred_at=None):
     return E.objects.create(record=record_row, kind=kind, occurred_at=occurred_at or timezone.now(), text=text, by_username=_actor(request))
+
+
+def _warn(request, record_row, sex, age, cell):
+    """Check the cell the person was just put in against the administration's cell rules. Warns only: the placement stands. The warning is
+    logged on the custody log and returned to the caller (request._det_warnings) so the screen can show it."""
+    ws = cellrules.warnings_for(sex, age, cell, exclude_pk=record_row.pk)
+    if ws:
+        _log(record_row, "note", request, "Cell warning: " + "; ".join(w["message"] for w in ws))
+        record("detention.cell_warning", request=request, entity_type="detention_record", entity_id=record_row.pk, metadata={"codes": [w["code"] for w in ws]})
+    request._det_warnings = ws
+    return ws
 
 
 def _officer(d):
@@ -214,9 +226,10 @@ def _book_in(request, unit, d):
                          age_years=age, id_ref=_text(d, "id_ref", 80), address=_text(d, "address", 200), booked_at=booked,
                          arrest_place=_text(d, "arrest_place", 200), arresting_officer=officer,
                          arresting_officer_name=_text(d, "arresting_officer_name", 200) or (officer.full_name if officer else ""), reason=reason,
-                         authority_ref=_text(d, "authority_ref", 150), cell=cell.code if cell else _text(d, "cell", 60), property_held=_text(d, "property_held", 500),
+                         authority_ref=_text(d, "authority_ref", 150), case_ref=_text(d, "case_ref", 80), cell=cell.code if cell else _text(d, "cell", 60), property_held=_text(d, "property_held", 500),
                          health_note=_text(d, "health_note", 300), created_by_username=_actor(request))
     _log(r, "booked", request, f"Booked in: {reason}", booked)
+    _warn(request, r, r.sex, r.age_years, cell)
     record("detention.book", request=request, entity_type="detention_record", entity_id=r.pk, metadata={"register_no": r.register_no, "org_unit": str(unit.pk)})
     if d.get("log_in_ob") in (True, "true", "1", 1, "on"):  # the arrest is also entered in the station's Occurrence Book
         from apps.occurrence.services import log_arrest
@@ -285,6 +298,8 @@ def add_event(request, row, d, version):
     r.version += 1
     r.save()
     ev = _log(r, kind, request, text, when)
+    if kind == "cell_move" and r.cell_ref_id:
+        _warn(request, r, r.sex, r.age_years, r.cell_ref)
     record("detention.event", request=request, entity_type="detention_record", entity_id=r.pk, metadata={"register_no": r.register_no, "kind": kind})
     return r, ev
 
@@ -329,7 +344,7 @@ def close_record(request, row, d, version):
     ended = _not_future(_when(d.get("ended_at"), "ended_at", timezone.now()), "ended_at")
     if ended < r.booked_at:
         raise field_error("ended_at", "before_booking", "This cannot be earlier than the booking time.")
-    note = _text(d, "outcome_note", 300, required=outcome in ("other", "bail", "court_order"))
+    note = _text(d, "outcome_note", 300, required=outcome in ("other", "bail", "court_order", "died_in_custody"))
     r.status = R.Status.TRANSFERRED if transfer else R.Status.RELEASED
     r.outcome, r.destination, r.outcome_note, r.ended_at, r.ended_by_username = outcome, destination, note, ended, _actor(request)
     r.outcome_ref = _text(d, "outcome_ref", 150)
@@ -376,6 +391,7 @@ def receive_record(request, row, d, version):
     except IntegrityError:
         raise field_error("state", "already_received", "This person has already been received, or is already in custody.")
     _log(new, "received", request, f"Received from {old.org_unit.name_en} (register {old.register_no})", received)
+    _warn(request, new, new.sex, new.age_years, cell)
     record("detention.receive", request=request, entity_type="detention_record", entity_id=new.pk,
            metadata={"register_no": new.register_no, "from_register_no": old.register_no, "from_unit": str(old.org_unit_id), "org_unit": str(unit.pk)})
     return new
@@ -395,6 +411,109 @@ def void_record(request, row, d, version):
     r.save()
     _log(r, "voided", request, reason)
     record("detention.void", request=request, entity_type="detention_record", entity_id=r.pk, metadata={"register_no": r.register_no, "reason": reason})
+    return r
+
+
+# ---- court dates, remand and charge -----------------------------------------------------------------------------------------
+def reminder_days():
+    return int(getattr(settings, "DETENTION_COURT_REMINDER_DAYS", 2))
+
+
+def court_flags(r, now=None):
+    """Next court date and the flags derived from what the court ordered. The system sets no limit itself: it only shows the dates it was given."""
+    now = now or timezone.now()
+    today = timezone.localdate(now)
+    hs = list(r.hearings.all())
+    sched = sorted((h for h in hs if h.status == "scheduled" and h.hearing_at), key=lambda h: h.hearing_at)
+    upcoming = [h for h in sched if h.hearing_at >= now]
+    remands = [h.remand_until for h in hs if h.remand_until and h.status != "cancelled"]
+    until = max(remands) if remands else None
+    held = r.status == R.Status.IN_CUSTODY
+    nxt = upcoming[0] if upcoming else None
+    return {"next_hearing_at": nxt.hearing_at if nxt else None, "next_hearing_court": nxt.court if nxt else "",
+            "court_soon": bool(held and nxt and nxt.hearing_at <= now + timedelta(days=reminder_days())),
+            "hearing_passed": bool(held and any(h.hearing_at < now for h in sched)),  # a date went by and no outcome was recorded
+            "remand_until": until, "remand_expired": bool(held and until and until < today)}
+
+
+def _hearing_out(h):
+    return {"id": str(h.pk), "purpose": h.purpose, "hearing_at": h.hearing_at, "court": h.court, "ordered_by": h.ordered_by, "order_ref": h.order_ref,
+            "remand_until": h.remand_until, "status": h.status, "note": h.note, "recorded_by": h.created_by_username, "version": h.version}
+
+
+@transaction.atomic
+def add_hearing(request, row, d, version):
+    r = _locked(row.pk, version)
+    if r.status != R.Status.IN_CUSTODY:
+        raise field_error("state", "not_in_custody", "Court dates can only be added while the person is in custody.")
+    purpose = d.get("purpose") or "hearing"
+    if purpose not in {c.value for c in CourtHearing.Purpose}:
+        raise field_error("purpose", "invalid_choice", "Choose hearing, remand, bail, sentencing or other.")
+    at = _when(d.get("hearing_at"), "hearing_at")
+    until = _day(d["remand_until"], "remand_until") if d.get("remand_until") not in (None, "") else None
+    if at is None and until is None:
+        raise field_error("hearing_at", "required", "Enter the court date, or the date the remand order runs to.")
+    ordered_by = _text(d, "ordered_by", 200, required=purpose == "remand")
+    h = CourtHearing.objects.create(record=r, purpose=purpose, hearing_at=at, court=_text(d, "court", 200), ordered_by=ordered_by,
+                                    order_ref=_text(d, "order_ref", 150), remand_until=until, note=_text(d, "note", 300), created_by_username=_actor(request))
+    r.version += 1
+    r.save()
+    label = CourtHearing.Purpose(purpose).label
+    _log(r, "court", request, label + (f" on {at:%Y-%m-%d %H:%M}" if at else "") + (f" until {until}" if until else "") + (f" at {h.court}" if h.court else "") + (f", ordered by {ordered_by}" if ordered_by else ""))
+    record("detention.court_add", request=request, entity_type="detention_record", entity_id=r.pk, metadata={"register_no": r.register_no, "purpose": purpose})
+    return r
+
+
+@transaction.atomic
+def update_hearing(request, row, d, version):
+    """Record what happened to a court date: held, adjourned (with the new date) or cancelled."""
+    r = _locked(row.pk, version)
+    h = CourtHearing.objects.select_for_update().filter(pk=_uid(d.get("hearing")), record=r).first() if _uid(d.get("hearing")) else None
+    if h is None:
+        raise field_error("hearing", "unknown", "Choose a court date of this person.")
+    try:
+        hv = int(d.get("hearing_version"))
+    except (TypeError, ValueError):
+        raise field_error("hearing_version", "required", "Send the court date's version.")
+    if h.version != hv:
+        raise VersionConflict()
+    status = d.get("status")
+    if status not in ("held", "adjourned", "cancelled") or h.status != "scheduled":
+        raise field_error("status", "invalid_choice", "Choose held, adjourned or cancelled for a scheduled court date.")
+    note = _text(d, "note", 300, required=status != "held")
+    new_at = None
+    if status == "adjourned":
+        new_at = _when(d.get("new_hearing_at"), "new_hearing_at")
+        if new_at is None:
+            raise field_error("new_hearing_at", "required", "Enter the new court date.")
+    h.status, h.note, h.version = status, note or h.note, h.version + 1
+    h.save()
+    if new_at:
+        CourtHearing.objects.create(record=r, purpose=h.purpose, hearing_at=new_at, court=h.court, ordered_by=h.ordered_by, order_ref=h.order_ref,
+                                    remand_until=h.remand_until, note=f"Adjourned from {h.hearing_at:%Y-%m-%d}" if h.hearing_at else "Adjourned", created_by_username=_actor(request))
+    r.version += 1
+    r.save()
+    _log(r, "court", request, f"Court date {status}" + (f"; new date {new_at:%Y-%m-%d %H:%M}" if new_at else "") + (f". {note}" if note else ""))
+    record("detention.court_update", request=request, entity_type="detention_record", entity_id=r.pk, metadata={"register_no": r.register_no, "status": status})
+    return r
+
+
+@transaction.atomic
+def record_charge(request, row, d, version):
+    """Record the charge once one exists, with the case / investigation file number. Can be updated; every change is logged."""
+    r = _locked(row.pk, version)
+    if r.status != R.Status.IN_CUSTODY:
+        raise field_error("state", "not_in_custody", "A charge can only be recorded while the person is in custody.")
+    charge = _text(d, "charge", 300, required=True)
+    case_ref = _text(d, "case_ref", 80) if "case_ref" in d else r.case_ref
+    when = _not_future(_when(d.get("charged_at"), "charged_at", timezone.now()), "charged_at")
+    if when < r.booked_at:
+        raise field_error("charged_at", "before_booking", "This cannot be earlier than the booking time.")
+    r.charge, r.case_ref, r.charged_at, r.charged_by_username = charge, case_ref, when, _actor(request)
+    r.version += 1
+    r.save()
+    _log(r, "charge", request, f"Charge recorded: {charge}" + (f" (case {case_ref})" if case_ref else ""), when)
+    record("detention.charge", request=request, entity_type="detention_record", entity_id=r.pk, metadata={"register_no": r.register_no, "case_ref": case_ref})
     return r
 
 
@@ -422,6 +541,7 @@ def _out(r, now=None):
             "last_review_at": r.last_review_at, "hours_since_review": hours_since_review(r, now) if r.status == R.Status.IN_CUSTODY else None,
             "received_at": r.received_at, "received_from": prev.register_no if prev else None, "received_as": nxt.register_no if nxt else None,
             "awaiting_receipt": bool(r.status == R.Status.TRANSFERRED and r.outcome == "transfer_station" and nxt is None),
+            "case_ref": r.case_ref, "charge": r.charge, "charged_at": r.charged_at, **court_flags(r, now),
             "recorded_by": r.created_by_username, "voided_reason": r.voided_reason if r.status == R.Status.VOID else "", "version": r.version}
 
 
@@ -430,6 +550,7 @@ def _event_out(e):
 
 
 REL = ("org_unit", "arresting_officer__rank", "facility", "destination_facility", "cell_ref", "destination_unit", "transferred_from", "received_as")
+PRE = ("hearings",)
 
 
 # ---- API -------------------------------------------------------------------------------------------------------------------
@@ -443,14 +564,16 @@ class DetentionViewSet(viewsets.GenericViewSet):
     permission_map = {"list": ("detention.view", "any"), "retrieve": ("detention.view", "any"), "summary": ("detention.view", "any"),
                       "create": ("detention.manage", "any"), "edit": ("detention.manage", "any"), "event": ("detention.manage", "any"),
                       "close": ("detention.manage", "any"), "void": ("detention.manage", "any"), "receive": ("detention.manage", "any"),
-                      "incoming": ("detention.manage", "any"), "stations": ("detention.manage", "any")}
+                      "incoming": ("detention.manage", "any"), "stations": ("detention.manage", "any"),
+                      "hearing": ("detention.manage", "any"), "hearing_update": ("detention.manage", "any"), "charge": ("detention.manage", "any"),
+                      "court": ("detention.view", "any"), "print_doc": ("detention.view", "any")}
 
     def _scoped(self):
         q = scope.unit_scope_q(self.request.user, "detention.view", "org_unit__")
         return R.objects.none() if q is None else R.objects.filter(q)
 
     def _row(self, pk, write=False):
-        row = self._scoped().select_related(*REL).filter(pk=_uid(pk)).first() if _uid(pk) else None
+        row = self._scoped().select_related(*REL).prefetch_related(*PRE).filter(pk=_uid(pk)).first() if _uid(pk) else None
         if row is None or (write and not scope.can(self.request.user, "detention.manage", unit=row.org_unit)):
             raise Http404
         return row
@@ -462,11 +585,13 @@ class DetentionViewSet(viewsets.GenericViewSet):
         return R.objects.filter(q, status="transferred", outcome="transfer_station", received_as__isnull=True)
 
     def _fresh(self, pk):
-        return _out(R.objects.select_related(*REL).get(pk=pk))
+        out = _out(R.objects.select_related(*REL).prefetch_related(*PRE).get(pk=pk))
+        out["warnings"] = getattr(self.request, "_det_warnings", [])  # cell-rule warnings from this action; they warn, never block
+        return out
 
     def list(self, request):
         p = request.query_params
-        qs = self._scoped().select_related(*REL)
+        qs = self._scoped().select_related(*REL).prefetch_related(*PRE)
         if p.get("status") in {"in_custody", "released", "transferred", "void"}:
             qs = qs.filter(status=p["status"])
         elif p.get("include_void") != "1":
@@ -494,7 +619,12 @@ class DetentionViewSet(viewsets.GenericViewSet):
     def retrieve(self, request, pk=None):
         r = self._row(pk)
         record_read(request, "detention.read_record", entity_type="detention_record", entity_id=r.pk, org_unit=r.org_unit)
-        return Response({**_out(r), "events": [_event_out(e) for e in r.events.all()]})
+        obs = [{"id": str(o.pk), "ob_number": o.ob_number, "category": o.category, "occurred_at": o.occurred_at, "summary": o.summary}
+               for o in r.occurrence_entries.exclude(status="void").order_by("occurred_at")]
+        flags = cellrules.warnings_for(r.sex, r.age_years, r.cell_ref, exclude_pk=r.pk) if r.status == R.Status.IN_CUSTODY else []
+        incidents = [{"id": str(i.pk), "kind": i.kind, "occurred_at": i.occurred_at, "reviewed": i.reviewed_at is not None} for i in r.incidents.all()]
+        return Response({**_out(r), "events": [_event_out(e) for e in r.events.all()], "hearings": [_hearing_out(h) for h in r.hearings.all()],
+                         "occurrence_entries": obs, "cell_flags": flags, "incidents": incidents})
 
     def create(self, request):
         d = json_body(request)
@@ -549,6 +679,56 @@ class DetentionViewSet(viewsets.GenericViewSet):
         ids = CustodyFacility.objects.filter(kind="jail_center", active=True, status="operational").values_list("org_unit_id", flat=True)
         units = OrganizationalUnit.objects.filter(pk__in=ids, active=True).order_by("path")
         return Response({"results": [{"id": str(u.pk), "code": u.code, "name_en": u.name_en, "name_so": u.name_so} for u in units]})
+
+    @action(detail=True, methods=["post"])
+    def hearing(self, request, pk=None):
+        """Record a court date or a remand order (who ordered it, until when)."""
+        d = json_body(request)
+        r = add_hearing(request, self._row(pk, write=True), d, require_version(d))
+        return Response(self._fresh(r.pk), status=201)
+
+    @action(detail=True, methods=["post"])
+    def hearing_update(self, request, pk=None):
+        d = json_body(request)
+        r = update_hearing(request, self._row(pk, write=True), d, require_version(d))
+        return Response(self._fresh(r.pk))
+
+    @action(detail=True, methods=["post"])
+    def charge(self, request, pk=None):
+        d = json_body(request)
+        r = record_charge(request, self._row(pk, write=True), d, require_version(d))
+        return Response(self._fresh(r.pk))
+
+    @action(detail=False, methods=["get"])
+    def court(self, request):
+        """Court calendar for the caller's scope: people with a remand that has run out, a court date that passed with no outcome, a date
+        within DETENTION_COURT_REMINDER_DAYS, and the dates in the next 30 days. Flags only; the dates are the ones the court gave."""
+        now = timezone.now()
+        rows = []
+        qs = self._scoped().filter(status="in_custody").select_related("org_unit").prefetch_related(*PRE)
+        for r in qs:
+            f = court_flags(r, now)
+            soon_cut = now + timedelta(days=30)
+            if f["remand_expired"] or f["hearing_passed"] or f["court_soon"] or (f["next_hearing_at"] and f["next_hearing_at"] <= soon_cut):
+                rows.append({"id": str(r.pk), "register_no": r.register_no, "detainee_name": r.detainee_name, "org_unit": _unit_brief(r.org_unit), **f})
+        order = lambda x: (not x["remand_expired"], not x["hearing_passed"], x["next_hearing_at"] or now + timedelta(days=9999))
+        rows.sort(key=order)
+        record_read(request, "detention.read_court_calendar", entity_type="detention_court", count=len(rows))
+        return Response({"results": rows, "reminder_days": reminder_days()})
+
+    @action(detail=True, methods=["post"], url_path="print")
+    def print_doc(self, request, pk=None):
+        """Audit the printing of a custody document (record, property receipt, release/transfer note). The PDF itself is built in the
+        browser from the record the person can already see; this call is what makes every printout traceable."""
+        d = json_body(request)
+        doc = d.get("doc")
+        if doc not in ("custody_record", "property_receipt", "release_note"):
+            raise field_error("doc", "invalid_choice", "Choose custody record, property receipt or release / transfer note.")
+        r = self._row(pk)
+        if doc == "release_note" and r.status in (R.Status.IN_CUSTODY, R.Status.VOID):
+            raise field_error("doc", "not_left_custody", "A release or transfer note needs a person who has left custody.")
+        record("detention.print", request=request, entity_type="detention_record", entity_id=r.pk, metadata={"register_no": r.register_no, "doc": doc})
+        return Response({"ok": True})
 
     @action(detail=True, methods=["post"])
     def void(self, request, pk=None):

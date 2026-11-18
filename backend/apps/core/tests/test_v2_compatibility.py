@@ -139,7 +139,7 @@ class RouteCompatibilityTests(BaseApiTest):
                                  # modules added after 2.0: protective equipment, equipment/vehicle models, inventory catalogue
                                  ("ppe", "ppe"), ("equipment", "equipment"), ("inventories", "inventory"),
                                  # Police modules: detention register, custody facilities, occurrence book, vehicle log and tracking, taxes
-                                 ("detention", "detention"), ("detention-oversight", "detention-oversight"), ("custody-facilities", "custody-facility"), ("occurrence-book", "occurrence-book"),
+                                 ("detention", "detention"), ("detention-oversight", "detention-oversight"), ("custody-incidents", "custody-incident"), ("custody-facilities", "custody-facility"), ("occurrence-book", "occurrence-book"),
                                  ("vehicle-tracking", "vehicle-tracking"), ("vehicle-log", "vehicle-log"), ("tax", "tax")})  # attendance, weapons, ammunition and payroll modules
 
     def test_version_1_prefix_is_unchanged(self):

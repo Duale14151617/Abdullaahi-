@@ -85,6 +85,7 @@ export function Login() {
             <img className="lp-avatar" src="/avatar-default.png" alt="" aria-hidden="true" width={80} height={80} />
 
             {offline && !error && <Notice kind="error">{t("err.network")}</Notice>}
+            <p className="muted"><a href="/offline-desk">{t("off.link")}</a></p>
             <ErrorNotice error={error} />
 
             <form onSubmit={(e) => void submit(e)}>

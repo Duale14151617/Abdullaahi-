@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PendingBanner, usePendingCount } from "../offline/PendingBanner";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { api } from "../api/client";
 import { useFetch } from "../api/useFetch";
@@ -32,13 +33,15 @@ const NAV_SECTIONS: { key: string; title?: Key; to: string[] }[] = [
   { key: "pay", title: "nav.group.pay", to: ["/payroll", "/survivors"] },
   { key: "reporting", title: "nav.group.reporting", to: ["/reports", "/summary", "/analytics", "/tasks"] },
   { key: "logistics", title: "nav.group.logistics", to: ["/logistics", "/ammunition", "/ppe", "/weapons", "/vehicles", "/food"] },
-  { key: "custody", title: "nav.group.custody", to: ["/detention", "/occurrence-book", "/custody-facilities", "/custody-oversight", "/custody-incidents"] },
+  { key: "custody", title: "nav.group.custody", to: ["/detention", "/occurrence-book", "/custody-facilities", "/custody-oversight", "/custody-incidents", "/offline-desk"] },
   { key: "revenue", title: "nav.group.revenue", to: ["/tax"] },
   { key: "admin", title: "nav.group.admin", to: ["/users", "/integrations", "/audit"] },
 ];
 
 export function Layout() {
   const { me, can, logout } = useAuth();
+  const pendingOffline = usePendingCount();
+  const signOut = () => { if (pendingOffline > 0 && !window.confirm(t("off.logoutWarn", { n: pendingOffline }))) return; void logout(); };
   const { t, lang, setLang, name } = useI18n();
 
   const location = useLocation();
@@ -64,6 +67,7 @@ export function Layout() {
     { to: "/custody-facilities", icon: "building", label: "nav.facilities", show: can("detention.view") },
     { to: "/custody-oversight", icon: "building", label: "nav.oversight", show: can("detention.view") },
     { to: "/custody-incidents", icon: "lock", label: "nav.incidents", show: can("detention.view") },
+    { to: "/offline-desk", icon: "lock", label: "off.nav", show: can("detention.view") },
     { to: "/tax", icon: "list", label: "nav.tax", show: can("tax.view") },
     { to: "/payroll", icon: "list", label: "nav.payroll", show: can("payroll.view") },
     { to: "/survivors", icon: "users", label: "nav.survivors", show: can("survivor.view") },
@@ -199,9 +203,10 @@ export function Layout() {
           <ThemeToggle />
           <button onClick={() => void switchLang()} lang={lang === "en" ? "so" : "en"}>{t("lang.other")}</button>
           <Link className="icon-btn" to="/account" aria-label={t("nav.account")} title={t("nav.account")}><Icon name="users" size={18} /></Link>
-          <button className="icon-btn" onClick={() => void logout()} aria-label={t("common.signOut")} title={t("common.signOut")}><Icon name="logout" size={18} /></button>
+          <button className="icon-btn" onClick={signOut} aria-label={t("common.signOut")} title={t("common.signOut")}><Icon name="logout" size={18} /></button>
         </div>
       </header>
+      <PendingBanner count={pendingOffline} />
       {import.meta.env.VITE_PREVIEW === "1" && <div className="preview-banner" role="note">{t("preview.banner")}</div>}
       <div className="scope-strip" aria-label={t("scope.label")}>
         {me && me.assignments.length > 0 ? (

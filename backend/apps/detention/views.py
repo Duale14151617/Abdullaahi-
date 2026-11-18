@@ -31,6 +31,8 @@ from .models import CourtHearing, CustodyCell, CustodyFacility, DetentionCounter
 
 R = DetentionRecord
 E = DetentionEvent
+OFFLINE_EVENT_KINDS = ("welfare", "medical", "visit", "property", "statement", "note", "review")  # append-only kinds that may be entered offline
+OFFLINE_MARK = " [entered offline]"
 MANUAL_EVENT_KINDS = ("welfare", "medical", "visit", "cell_move", "property", "statement", "note", "review")
 EDITABLE = {"detainee_name": 200, "detainee_alias": 200, "id_ref": 80, "address": 200, "arrest_place": 200, "arresting_officer_name": 200,
             "reason": 300, "authority_ref": 150, "case_ref": 80, "property_held": 500, "health_note": 300}  # the cell changes only through a logged cell move
@@ -114,8 +116,12 @@ def _next_number():
     return f"DET-{c.last:06d}"
 
 
-def _log(record_row, kind, request, text="", occurred_at=None):
-    return E.objects.create(record=record_row, kind=kind, occurred_at=occurred_at or timezone.now(), text=text, by_username=_actor(request))
+def _log(record_row, kind, request, text="", occurred_at=None, client_ref=""):
+    return E.objects.create(record=record_row, kind=kind, occurred_at=occurred_at or timezone.now(), text=text, by_username=_actor(request), client_ref=client_ref)
+
+
+def _is_offline(d):
+    return d.get("offline") in (True, "true", "1", 1) and bool(str(d.get("client_ref") or "").strip())
 
 
 def _warn(request, record_row, sex, age, cell):
@@ -197,6 +203,10 @@ def book_in(request, unit, d):
         with transaction.atomic():
             return _book_in(request, unit, d)
     except IntegrityError:
+        ref = _text(d, "client_ref", 36)
+        again = R.objects.filter(client_ref=ref).first() if ref else None
+        if again is not None:  # the same offline booking arrived twice at once: keep the first
+            return again
         raise field_error("id_ref", "duplicate_active_custody", "A person with this ID number is already in custody. One person cannot be held twice.")
 
 
@@ -222,15 +232,16 @@ def _book_in(request, unit, d):
     cell = _cell(d["cell_ref"], facility) if d.get("cell_ref") not in (None, "") else None
     key = id_key(_text(d, "id_ref", 80))
     _check_id_free(key)
-    r = R.objects.create(register_no=_next_number(), org_unit=unit, facility=facility, cell_ref=cell, id_ref_key=key, detainee_name=name, detainee_alias=_text(d, "detainee_alias", 200), sex=sex,
+    offline = _is_offline(d)
+    r = R.objects.create(register_no=_next_number(), org_unit=unit, facility=facility, cell_ref=cell, id_ref_key=key, client_ref=_text(d, "client_ref", 36), detainee_name=name, detainee_alias=_text(d, "detainee_alias", 200), sex=sex,
                          age_years=age, id_ref=_text(d, "id_ref", 80), address=_text(d, "address", 200), booked_at=booked,
                          arrest_place=_text(d, "arrest_place", 200), arresting_officer=officer,
                          arresting_officer_name=_text(d, "arresting_officer_name", 200) or (officer.full_name if officer else ""), reason=reason,
                          authority_ref=_text(d, "authority_ref", 150), case_ref=_text(d, "case_ref", 80), cell=cell.code if cell else _text(d, "cell", 60), property_held=_text(d, "property_held", 500),
                          health_note=_text(d, "health_note", 300), created_by_username=_actor(request))
-    _log(r, "booked", request, f"Booked in: {reason}", booked)
+    _log(r, "booked", request, f"Booked in: {reason}" + (OFFLINE_MARK if offline else ""), booked)
     _warn(request, r, r.sex, r.age_years, cell)
-    record("detention.book", request=request, entity_type="detention_record", entity_id=r.pk, metadata={"register_no": r.register_no, "org_unit": str(unit.pk)})
+    record("detention.book", request=request, entity_type="detention_record", entity_id=r.pk, metadata={"register_no": r.register_no, "org_unit": str(unit.pk), **({"offline": True} if offline else {})})
     if d.get("log_in_ob") in (True, "true", "1", 1, "on"):  # the arrest is also entered in the station's Occurrence Book
         from apps.occurrence.services import log_arrest
         log_arrest(request, r)
@@ -279,6 +290,9 @@ def add_event(request, row, d, version):
     kind = d.get("kind")
     if kind not in MANUAL_EVENT_KINDS:
         raise field_error("kind", "invalid_choice", "Choose a welfare check, medical, visit, cell move, property, statement, custody review or note.")
+    offline = _is_offline(d)
+    if offline and kind not in OFFLINE_EVENT_KINDS:
+        raise field_error("kind", "not_offline", "This entry cannot be made offline. Enter it when you are connected.")
     text = _text(d, "text", 500, required=kind not in ("cell_move", "review"))
     when = _not_future(_when(d.get("occurred_at"), "occurred_at", timezone.now()), "occurred_at")
     if when < r.booked_at:
@@ -297,10 +311,10 @@ def add_event(request, row, d, version):
         text = text or "Custody reviewed; continued holding recorded."
     r.version += 1
     r.save()
-    ev = _log(r, kind, request, text, when)
+    ev = _log(r, kind, request, text + (OFFLINE_MARK if offline else ""), when, client_ref=_text(d, "client_ref", 36) if offline else "")
     if kind == "cell_move" and r.cell_ref_id:
         _warn(request, r, r.sex, r.age_years, r.cell_ref)
-    record("detention.event", request=request, entity_type="detention_record", entity_id=r.pk, metadata={"register_no": r.register_no, "kind": kind})
+    record("detention.event", request=request, entity_type="detention_record", entity_id=r.pk, metadata={"register_no": r.register_no, "kind": kind, **({"offline": True} if offline else {})})
     return r, ev
 
 
@@ -631,6 +645,10 @@ class DetentionViewSet(viewsets.GenericViewSet):
         unit = OrganizationalUnit.objects.filter(pk=_uid(d.get("org_unit"))).first() if _uid(d.get("org_unit")) else None
         if unit is None or not scope.can(request.user, "detention.manage", unit=unit):
             raise field_error("org_unit", "unknown", "Choose the station holding the person.")
+        ref = _text(d, "client_ref", 36)
+        again = self._scoped().filter(client_ref=ref).first() if ref else None
+        if again is not None:  # an offline booking re-sent after the first attempt got through: answer with the record, create nothing
+            return Response({**self._fresh(again.pk), "already_recorded": True}, status=200)
         r = book_in(request, unit, d)
         return Response(self._fresh(r.pk), status=201)
 
@@ -643,7 +661,14 @@ class DetentionViewSet(viewsets.GenericViewSet):
     @action(detail=True, methods=["post"])
     def event(self, request, pk=None):
         d = json_body(request)
-        r, _ev = add_event(request, self._row(pk, write=True), d, require_version(d))
+        row = self._row(pk, write=True)
+        if _is_offline(d):
+            ref = _text(d, "client_ref", 36)
+            if E.objects.filter(client_ref=ref).exists():  # re-sent after the first attempt got through
+                return Response({**self._fresh(row.pk), "already_recorded": True}, status=200)
+            # An offline event only ADDS a line to the log, so it does not need the record's version: the device never saw the latest one.
+            d = {**d, "version": row.version}
+        r, _ev = add_event(request, row, d, require_version(d))
         return Response(self._fresh(r.pk), status=201)
 
     @action(detail=True, methods=["post"])

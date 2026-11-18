@@ -23,6 +23,7 @@ import { DetentionOversight } from "./pages/DetentionOversight";
 import { CustodyIncidents } from "./pages/CustodyIncidents";
 import { Detention } from "./pages/Detention";
 import { OccurrenceBook } from "./pages/OccurrenceBook";
+import { OfflineDesk } from "./offline/OfflineDesk";
 import { Tax } from "./pages/Tax";
 import { Equipment, EquipmentDetail } from "./pages/Equipment";
 import { Holdings } from "./pages/Holdings";
@@ -65,6 +66,7 @@ export default function App() {
     if (location.pathname === "/reset") return <ResetPassword />;
     if (location.pathname === "/forgot") return <ForgotPassword />;
     if (location.pathname === "/recover") return <RecoverMfa />;
+    if (location.pathname === "/offline-desk") return <OfflineDesk />;
     return <Login />;
   }
   if (me.restrictions.includes("password_change")) return <ForcedPassword />;
@@ -103,6 +105,7 @@ export default function App() {
         <Route path="custody-facilities" element={<CustodyFacilities />} />
         <Route path="custody-oversight" element={<DetentionOversight />} />
         <Route path="custody-incidents" element={<CustodyIncidents />} />
+        <Route path="offline-desk" element={<OfflineDesk />} />
         <Route path="tax" element={<Tax />} />
         <Route path="equipment" element={<Equipment />} />
         <Route path="equipment/:id" element={<EquipmentDetail />} />

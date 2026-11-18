@@ -174,6 +174,7 @@ class DetentionRecord(models.Model):
     ended_at = models.DateTimeField(null=True, blank=True)
     outcome = models.CharField(max_length=20, choices=Outcome.choices, blank=True)
     case_ref = models.CharField(max_length=80, blank=True)  # case / investigation file number
+    client_ref = models.CharField(max_length=36, blank=True)  # id made on the device for an offline entry: a re-sent booking is never created twice
     charge = models.CharField(max_length=300, blank=True)  # recorded once a charge exists
     charged_at = models.DateTimeField(null=True, blank=True)
     charged_by_username = models.CharField(max_length=150, blank=True)
@@ -201,7 +202,8 @@ class DetentionRecord(models.Model):
                    models.Index(fields=["status", "-booked_at"], name="det_status_idx")]
         constraints = [models.CheckConstraint(condition=models.Q(ended_at__isnull=True) | models.Q(ended_at__gte=models.F("booked_at")),
                                               name="det_end_after_booking"),
-                       models.UniqueConstraint(fields=["id_ref_key"], condition=~models.Q(id_ref_key=""), name="det_one_active_custody_per_id")]
+                       models.UniqueConstraint(fields=["id_ref_key"], condition=~models.Q(id_ref_key=""), name="det_one_active_custody_per_id"),
+                       models.UniqueConstraint(fields=["client_ref"], condition=~models.Q(client_ref=""), name="det_unique_client_ref")]
 
     def delete(self, *args, **kwargs):
         raise AppendOnlyError("Detention register rows cannot be deleted.")
@@ -233,12 +235,14 @@ class DetentionEvent(AppendOnlyModel):
     occurred_at = models.DateTimeField()
     text = models.CharField(max_length=500, blank=True)
     by_username = models.CharField(max_length=150, blank=True)
+    client_ref = models.CharField(max_length=36, blank=True)  # offline entries: a re-sent event is never added twice
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "detention_events"
         ordering = ["occurred_at", "created_at"]
         indexes = [models.Index(fields=["record", "occurred_at"], name="detevt_record_idx")]
+        constraints = [models.UniqueConstraint(fields=["client_ref"], condition=~models.Q(client_ref=""), name="detevt_unique_client_ref")]
 
 
 class CourtHearing(models.Model):

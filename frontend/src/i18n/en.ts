@@ -56,6 +56,7 @@ export const en = {
   "scope.label": "Your authority",
   "app.about": "About",
   "app.privacy": "Privacy",
+  "app.footer": "Administrative platform",
   "rep.strength": "Police strength",
   "scope.allBranches": "All branches",
   "scope.until": "until {date}",

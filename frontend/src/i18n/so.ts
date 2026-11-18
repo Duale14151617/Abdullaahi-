@@ -60,6 +60,7 @@ export const so: Record<keyof typeof en, string> = {
   "scope.label": "Awoodaada",
   "app.about": "Nagu saabsan",
   "app.privacy": "Xogta gaarka ah",
+  "app.footer": "Madal maamul",
   "rep.strength": "Tirada Ciidanka Dhulka",
   "scope.allBranches": "Dhammaan laamaha",
   "scope.until": "ilaa {date}",

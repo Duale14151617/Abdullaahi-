@@ -4,7 +4,6 @@
 > The system has been run on Render as a live web service backed by PostgreSQL, and **every part of it works**: sign-in with MFA,
 > users and scoped roles, organization and structure, personnel, ranks, reports and approvals, attendance, vehicles, weapons,
 > logistics, training, payroll and survivor benefits, analytics, audit log, dashboard, and the English/Somali interface on desktop and phone.
-> By design it holds **no real data** yet: it runs on synthetic data while we wait for the Army's approval.
 
 **Stack:** Django 5 + Django REST Framework, PostgreSQL, React + TypeScript (Vite), shipped as one Docker image and deployed on Render.
 There is no XAMPP/WAMP/PHP in this project.

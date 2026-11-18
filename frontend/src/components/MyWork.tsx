@@ -22,7 +22,7 @@ export function MyWork() {
   if (can("system.full_access")) return null;
 
   const s = summary.data;
-  const tiles: Tile[] = [
+  const candidates: Tile[] = [
     { to: "/detention", icon: "lock", label: "nav.detention", show: custody,
       sub: s ? t("my.custodySub", { held: s.in_custody, overdue: s.overdue }) : undefined },
     { to: "/shift-handover", icon: "swap", label: "nav.handover", show: custody && can("detention.manage"),
@@ -38,7 +38,8 @@ export function MyWork() {
     { to: "/payroll", icon: "list", label: "nav.payroll", show: can("payroll.view") },
     { to: "/training", icon: "cap", label: "nav.training", show: can("training.configure") || can("training.report") },
     { to: "/reports", icon: "file", label: "nav.reports", show: can("reports.submit") },
-  ].filter((x) => x.show).slice(0, 6);
+  ];
+  const tiles = candidates.filter((x) => x.show).slice(0, 6);
   if (tiles.length === 0) return null;
 
   return (

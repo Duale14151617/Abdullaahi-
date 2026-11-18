@@ -22,8 +22,10 @@ from apps.vehicles.logbook import VehicleLogViewSet
 from apps.vehicles.tracking import TrackerFeedView, VehicleTrackingViewSet
 from apps.detention.facility_views import CustodyFacilityViewSet
 from apps.detention.incidents import CustodyIncidentViewSet
+from apps.detention.handover import ShiftHandoverViewSet
 from apps.detention.oversight import DetentionOversightViewSet
 from apps.detention.views import DetentionViewSet
+from apps.personnel.report import PersonnelReportViewSet
 from apps.occurrence.views import OccurrenceViewSet
 from apps.tax.views import TaxViewSet
 from apps.equipment.views import EquipmentViewSet
@@ -82,6 +84,8 @@ router.register("vehicle-log", VehicleLogViewSet, basename="vehicle-log")
 router.register("vehicle-tracking", VehicleTrackingViewSet, basename="vehicle-tracking")
 router.register("detention", DetentionViewSet, basename="detention")
 router.register("detention-oversight", DetentionOversightViewSet, basename="detention-oversight")
+router.register("personnel-report", PersonnelReportViewSet, basename="personnel-report")
+router.register("shift-handovers", ShiftHandoverViewSet, basename="shift-handover")
 router.register("custody-incidents", CustodyIncidentViewSet, basename="custody-incident")
 router.register("custody-facilities", CustodyFacilityViewSet, basename="custody-facility")
 router.register("occurrence-book", OccurrenceViewSet, basename="occurrence-book")

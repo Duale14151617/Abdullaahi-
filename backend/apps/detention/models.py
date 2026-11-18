@@ -321,3 +321,35 @@ class CustodyIncident(models.Model):
 
     def delete(self, *args, **kwargs):
         raise AppendOnlyError("Custody incident reports cannot be deleted.")
+
+
+class ShiftHandover(AppendOnlyModel):
+    """The note an officer leaves at the end of a shift: who is in custody, what is pending, what to watch. Never edited or deleted.
+    `custody_snapshot` is taken by the server from the register at the moment of writing, so the note shows what was true then.
+    The next officer acknowledges it (ShiftHandoverAck); the author cannot acknowledge their own note."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    org_unit = models.ForeignKey("organization.OrganizationalUnit", on_delete=models.PROTECT, related_name="shift_handovers")
+    shift_ended_at = models.DateTimeField()
+    custody_snapshot = models.JSONField(default=list)  # [{register_no, name, cell, held_hours, review_due, court_soon, remand_expired}]
+    custody_note = models.CharField(max_length=1000, blank=True)  # the officer's own words about the people held (health, risk, visitors)
+    pending = models.CharField(max_length=2000)
+    watch = models.CharField(max_length=2000)
+    written_by_username = models.CharField(max_length=150)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "shift_handovers"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["org_unit", "-created_at"], name="handover_unit_idx")]
+
+
+class ShiftHandoverAck(AppendOnlyModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    handover = models.OneToOneField(ShiftHandover, on_delete=models.PROTECT, related_name="ack")  # one acknowledgement per note, enforced by the database
+    acknowledged_by_username = models.CharField(max_length=150)
+    acknowledged_at = models.DateTimeField(auto_now_add=True)
+    comment = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        db_table = "shift_handover_acks"

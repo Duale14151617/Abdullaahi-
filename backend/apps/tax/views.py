@@ -353,7 +353,7 @@ class TaxViewSet(viewsets.GenericViewSet):
                       "vehicle_edit": ("tax.record", "any"), "payments": ("tax.view", "any"), "payment_create": ("tax.record", "any"),
                       "payment_void": ("tax.record", "any"), "handovers": ("tax.view", "any"), "handover_create": ("tax.record", "any"),
                       "handover_confirm": ("tax.confirm", "any"), "summary": ("tax.view", "any"), "report": ("tax.view", "any"),
-                      "overdue_export": ("tax.view", "any")}
+                      "oversight": ("tax.view", "any"), "overdue_export": ("tax.view", "any")}
 
     # scoping
     def _q(self, code, prefix):
@@ -560,6 +560,93 @@ class TaxViewSet(viewsets.GenericViewSet):
                                    "currency": r["currency"], "count": r["n"], "total": _money_str(r["total"])} for r in rows],
                          "voided": span.filter(voided_at__isnull=False).count(),
                          "held_by_collectors": [{"unit": unit(r), "currency": r["currency"], "count": r["n"], "total": _money_str(r["total"])} for r in held]})
+
+    @action(detail=False, methods=["get"])
+    def oversight(self, request):
+        """Tax report by station and region for a period (?from=&to=, default the last 30 days; ?unit= limits to a unit and everything below it),
+        the way the custody report is built: what each station collected, voided, still holds in cash, handed over and counted, and how many
+        vehicles lack current cover. Counts and amounts only, no owners or plates. Audited."""
+        p = request.query_params
+        today = timezone.localdate()
+        d1 = _date(p.get("to"), "to") or today
+        d0 = _date(p.get("from"), "from") or d1 - timedelta(days=29)
+        if d1 < d0:
+            raise field_error("to", "before_start", "The end date cannot be before the start date.")
+        if (d1 - d0).days > 366:
+            raise field_error("to", "range_too_long", "Choose a period of at most one year.")
+        pays, vehs, hos = self._payments(), self._vehicles().filter(active=True), self._handovers()
+        if _uid(p.get("unit")):
+            prefix = OrganizationalUnit.objects.filter(pk=_uid(p["unit"])).values_list("path", flat=True).first()
+            if not prefix:
+                raise Http404
+            pays, vehs, hos = (x.filter(org_unit__path__startswith=prefix) for x in (pays, vehs, hos))
+        live = pays.filter(voided_at__isnull=True)
+        rows = {}
+
+        def row(uid):
+            return rows.setdefault(uid, {"receipts": 0, "collected": {}, "voided": 0, "held": {}, "held_count": 0, "handovers": 0,
+                                         "handovers_confirmed": 0, "handover_differences": 0, "vehicles": 0, "overdue": 0})
+        for r in live.filter(paid_on__gte=d0, paid_on__lte=d1).values("org_unit_id", "currency").annotate(n=Count("id"), total=Sum("amount")):
+            x = row(r["org_unit_id"])
+            x["receipts"] += r["n"]
+            x["collected"][r["currency"]] = x["collected"].get(r["currency"], Decimal("0")) + Decimal(str(r["total"]))
+        for r in pays.filter(paid_on__gte=d0, paid_on__lte=d1, voided_at__isnull=False).values("org_unit_id").annotate(n=Count("id")):
+            row(r["org_unit_id"])["voided"] += r["n"]
+        for r in live.filter(handover__isnull=True).values("org_unit_id", "currency").annotate(n=Count("id"), total=Sum("amount")):
+            x = row(r["org_unit_id"])
+            x["held_count"] += r["n"]
+            x["held"][r["currency"]] = x["held"].get(r["currency"], Decimal("0")) + Decimal(str(r["total"]))
+        span = hos.filter(handed_at__date__gte=d0, handed_at__date__lte=d1)
+        for h in span.values("org_unit_id", "status", "expected_amount", "counted_amount"):
+            x = row(h["org_unit_id"])
+            x["handovers"] += 1
+            if h["status"] == "confirmed":
+                x["handovers_confirmed"] += 1
+                if h["counted_amount"] is not None and h["counted_amount"] != h["expected_amount"]:
+                    x["handover_differences"] += 1
+        for r in vehs.values("org_unit_id").annotate(n=Count("id")):
+            row(r["org_unit_id"])["vehicles"] += r["n"]
+        types = list(Typ.objects.filter(active=True, recurring=True))
+        lacking = Q(pk__in=[])
+        for t in types:
+            covered = Pay.objects.filter(vehicle=OuterRef("pk"), tax_type=t, voided_at__isnull=True, period_to__gte=today)
+            lacking |= Q(pk__in=Veh.objects.exclude(Exists(covered)).values("pk"))
+        if types:
+            for r in vehs.filter(lacking).values("org_unit_id").annotate(n=Count("id")):
+                row(r["org_unit_id"])["overdue"] += r["n"]
+
+        from apps.core.orgpaths import region_id
+        units = {u.pk: u for u in OrganizationalUnit.objects.filter(pk__in=list(rows))}
+
+        def fmt(m):
+            return [{"currency": c, "total": _money_str(v)} for c, v in sorted(m.items())]
+
+        def merge(into, x):
+            for k in ("receipts", "voided", "held_count", "handovers", "handovers_confirmed", "handover_differences", "vehicles", "overdue"):
+                into[k] += x[k]
+            for k in ("collected", "held"):
+                for c, v in x[k].items():
+                    into[k][c] = into[k].get(c, Decimal("0")) + v
+        blank = lambda: {"receipts": 0, "collected": {}, "voided": 0, "held": {}, "held_count": 0, "handovers": 0,  # noqa: E731
+                         "handovers_confirmed": 0, "handover_differences": 0, "vehicles": 0, "overdue": 0}
+        out_units, regions, totals = [], {}, blank()
+        for uid, x in sorted(rows.items(), key=lambda kv: units[kv[0]].path if kv[0] in units else ""):
+            u = units.get(uid)
+            if u is None:
+                continue
+            rid = region_id(u.path) or ""
+            out_units.append({"unit": _unit_brief(u), "_rid": rid, **{k: v for k, v in x.items() if k not in ("collected", "held")}, "collected": fmt(x["collected"]), "held": fmt(x["held"])})
+            merge(regions.setdefault(rid, blank()), x)
+            merge(totals, x)
+        names = {str(u.pk): u for u in OrganizationalUnit.objects.filter(pk__in=[r for r in regions if r])}
+        out_regions = [{"unit": _unit_brief(names.get(rid)), **{k: v for k, v in g.items() if k not in ("collected", "held")}, "collected": fmt(g["collected"]), "held": fmt(g["held"])}
+                       for rid, g in regions.items()]
+        for r in out_units:
+            r["region"] = _unit_brief(names.get(r.pop("_rid")))
+        record_read(request, "tax.read_oversight", entity_type="tax_report", count=len(out_units))
+        return Response({"from": d0, "to": d1, "as_of": timezone.now(),
+                         "totals": {**{k: v for k, v in totals.items() if k not in ("collected", "held")}, "collected": fmt(totals["collected"]), "held": fmt(totals["held"])},
+                         "regions": sorted(out_regions, key=lambda r: (r["unit"] or {}).get("code", "")), "units": out_units})
 
     @action(detail=False, methods=["get"], url_path="overdue-export")
     def overdue_export(self, request):

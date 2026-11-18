@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { SHOW_OFFLINE_DESK } from "../offline/config";
 import { brand, emblemName } from "../lib/brand";
 import { ApiError, api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -85,7 +86,7 @@ export function Login() {
             <img className="lp-avatar" src="/avatar-default.png" alt="" aria-hidden="true" width={80} height={80} />
 
             {offline && !error && <Notice kind="error">{t("err.network")}</Notice>}
-            <p className="muted"><a href="/offline-desk">{t("off.link")}</a></p>
+            {SHOW_OFFLINE_DESK && <p className="muted"><a href="/offline-desk">{t("off.link")}</a></p>}
             <ErrorNotice error={error} />
 
             <form onSubmit={(e) => void submit(e)}>

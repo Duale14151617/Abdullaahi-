@@ -189,3 +189,33 @@ class ReportAndExportTests(TaxBase):
         self.assertEqual([x["plate"] for x in r["results"]], ["BB-2"])
         self.assertTrue(AuditEvent.objects.filter(action="tax.export_overdue").exists())
         self.assertEqual(self.member.get(URL + "overdue-export/").status_code, 403)
+
+
+class OversightReportTests(TaxBase):
+    def test_station_and_region_rows_with_cash_held_handovers_and_overdue(self):
+        a, b = self.vehicle("AA-1"), self.vehicle("BB-2")
+        self.pay(a, "R-1", amount="20.00")
+        self.pay(b, "R-2", amount="5.00", t=self.fine)
+        gone = self.pay(b, "R-3", amount="9.00", t=self.fine).data
+        self.collector.post(f"{URL}{gone['id']}/payments/void/", {"version": 1, "reason": "dup"}, format="json")
+        d = self.collector.get(URL + "oversight/").data
+        row = next(u for u in d["units"] if u["unit"]["code"] == "BARI-ARMY-A")
+        self.assertEqual((row["receipts"], row["voided"], row["vehicles"]), (2, 1, 2))
+        self.assertEqual(Decimal(row["collected"][0]["total"]), Decimal("25.00"))
+        self.assertEqual((row["held_count"], Decimal(row["held"][0]["total"])), (2, Decimal("25.00")))
+        self.assertEqual(row["overdue"], 2)  # road tax is also recurring and neither vehicle has it
+        self.assertEqual(d["totals"]["receipts"], 2)
+        self.assertEqual(len(d["regions"]), 1)
+
+    def test_scope_period_and_permission(self):
+        self.pay(self.vehicle("AA-1"), "R-1")
+        self.assertEqual(self.nugaal.get(URL + "oversight/").data["totals"]["receipts"], 0)
+        self.assertEqual(self.collector.get(URL + "oversight/?from=2026-02-01&to=2026-01-01").status_code, 400)
+        self.assertEqual(self.member.get(URL + "oversight/").status_code, 403)
+
+    def test_report_has_no_owner_or_plate_and_is_audited(self):
+        self.pay(self.vehicle("ZZ-9"), "R-9")
+        d = self.collector.get(URL + "oversight/").data
+        self.assertNotIn("ZZ-9", str(d))
+        self.assertNotIn("Test Owner", str(d))
+        self.assertTrue(AuditEvent.objects.filter(action="tax.read_oversight").exists())

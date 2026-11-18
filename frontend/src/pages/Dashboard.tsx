@@ -12,6 +12,7 @@ import { formatLongDate, greetingKey, timeAgo } from "../lib/time";
 import { useI18n } from "../i18n";
 import { ExportPdfButton } from "../components/ExportPdfButton";
 import { ActivityChart, ChartPanel, RangeSwitch, RegionChart } from "../components/DashboardCharts";
+import { MyWork } from "../components/MyWork";
 import { ExceptionsPanel, ReviewQueuePanel, SecurityPanel, TasksPanel, TrainingPanel } from "../components/DashboardPanels";
 
 type Row = [label: string, value: number, tone?: string];
@@ -377,6 +378,7 @@ export function Dashboard() {
           })} />
         )}
       </div>
+      <MyWork />
       <ErrorNotice error={error} />
       {loading && !n ? <Skeleton label={t("common.loading")} /> : body}
     </div>

@@ -236,6 +236,16 @@ ROLES = {
                       BASIC + ["tax.view", "tax.record"]),
     "tax_cashier": ("Tax cash officer", "Sarkaalka lacagta canshuurta", True, False, ["headquarters", "region", "branch_command"],
                     BASIC + ["tax.view", "tax.confirm"]),
+    # Heads of a work area, working at headquarters or a region. They run or oversee ONE area and nothing else.
+    # Custody lead: runs the custody work above station level (verifies jails, reviews incidents, reads the oversight dashboard).
+    "custody_commander": ("Custody lead", "Madaxa xabsiga ilaalada", True, False, ["headquarters", "region", "branch_command"],
+                          BASIC + ["detention.view", "detention.manage", "detention.verify", "detention.incident_review", "reports.view"]),
+    # Tax head: sees the whole tax register and reports. Reads only: collecting stays with collectors and cash counting with the cash officer.
+    "tax_head": ("Tax head", "Madaxa canshuurta", True, False, ["headquarters", "region", "branch_command"],
+                 BASIC + ["tax.view", "reports.view", "analytics.view"]),
+    # Ministry viewer: oversight for the ministry. Reads custody, tax and approved summaries; changes nothing.
+    "ministry_viewer": ("Ministry viewer", "Daawadaha wasaaradda", True, False, ["headquarters"],
+                        BASIC + ["detention.view", "tax.view", "reports.view", "reports.summary", "analytics.view"]),
     "custody_officer": ("Custody officer", "Sarkaalka xabsiga ilaalada", True, False, ["region", "branch_command", "unit"],
                         BASIC + ["detention.view", "detention.manage"]),
     # Finance duties are split four ways: the payroll officer PREPARES (runs, payment instructions, arrears), the approver AUTHORISES,

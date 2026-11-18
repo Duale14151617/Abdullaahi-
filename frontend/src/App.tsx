@@ -23,6 +23,9 @@ import { DetentionOversight } from "./pages/DetentionOversight";
 import { CustodyIncidents } from "./pages/CustodyIncidents";
 import { Detention } from "./pages/Detention";
 import { OccurrenceBook } from "./pages/OccurrenceBook";
+import { PersonnelReport } from "./pages/PersonnelReport";
+import { ShiftHandover } from "./pages/ShiftHandover";
+import { TaxOversight } from "./pages/TaxOversight";
 import { OfflineDesk } from "./offline/OfflineDesk";
 import { Tax } from "./pages/Tax";
 import { Equipment, EquipmentDetail } from "./pages/Equipment";
@@ -102,11 +105,14 @@ export default function App() {
         <Route path="vehicle-tracking" element={<VehicleTracking />} />
         <Route path="detention" element={<Detention />} />
         <Route path="occurrence-book" element={<OccurrenceBook />} />
+        <Route path="shift-handover" element={<ShiftHandover />} />
         <Route path="custody-facilities" element={<CustodyFacilities />} />
         <Route path="custody-oversight" element={<DetentionOversight />} />
         <Route path="custody-incidents" element={<CustodyIncidents />} />
         <Route path="offline-desk" element={<OfflineDesk />} />
         <Route path="tax" element={<Tax />} />
+        <Route path="tax-oversight" element={<TaxOversight />} />
+        <Route path="personnel-report" element={<PersonnelReport />} />
         <Route path="equipment" element={<Equipment />} />
         <Route path="equipment/:id" element={<EquipmentDetail />} />
         <Route path="holdings" element={<Holdings />} />

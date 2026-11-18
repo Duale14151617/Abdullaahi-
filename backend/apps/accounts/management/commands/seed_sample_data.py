@@ -100,6 +100,9 @@ for _name in ("Bari", "Nugaal", "Mudug", "Sanaag"):
 SAMPLE_USERS.setdefault("transport.officer", ("Transport Officer", "transport_officer", "BARI", None))
 SAMPLE_USERS.setdefault("vehicle.approver", ("Vehicle Disposal Approver", "vehicle_disposal_approver", "HQ", None))
 SAMPLE_USERS.setdefault("custody.officer", ("Custody Officer", "custody_officer", "BARI", None))
+SAMPLE_USERS.setdefault("custody.lead", ("Custody Lead", "custody_commander", "HQ", None))
+SAMPLE_USERS.setdefault("tax.head", ("Tax Head", "tax_head", "HQ", None))
+SAMPLE_USERS.setdefault("ministry.viewer", ("Ministry Viewer", "ministry_viewer", "HQ", None))
 SAMPLE_USERS.setdefault("tax.collector", ("Tax Collector", "tax_collector", "BARI", None))
 SAMPLE_USERS.setdefault("tax.cashier", ("Tax Cash Officer", "tax_cashier", "HQ", None))
 

@@ -1346,7 +1346,7 @@ export const so: Record<keyof typeof en, string> = {
   "sc.decidedBy": "Go'aamiyay {name}",
   "sc.impact": "Saameyn",
   "sc.affected": "Cutubyada jira ee saameysmay: {n}",
-  "sc.problems": "Dhibaatooyin lagu hagaajinayo kahor gudbinta",
+  "sc.problems": "Waxay u baahan tahay feejignaan kahor gudbinta",
   "sc.none": "Codsi ma jiro weli.",
   "sc.ops": "{n} isbeddel",
   "sc.problem.tier_order": "Heer waa inuu ka hooseeyaa heerka ka sarreeya.",

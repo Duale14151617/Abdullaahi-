@@ -1342,7 +1342,7 @@ export const en = {
   "sc.decidedBy": "Decided by {name}",
   "sc.impact": "Impact",
   "sc.affected": "Existing units affected: {n}",
-  "sc.problems": "Problems to fix before submitting",
+  "sc.problems": "Needs attention before submitting",
   "sc.none": "No proposals yet.",
   "sc.ops": "{n} change(s)",
   "sc.problem.tier_order": "A level must be deeper than its parent.",

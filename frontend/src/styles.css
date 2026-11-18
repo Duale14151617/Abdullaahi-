@@ -165,6 +165,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent-text); 
 /* status badges (.chip) are defined in the design-system section at the end of this file */
 .notice { border-radius: 6px; padding: .6rem .85rem; margin-bottom: 1rem; border-left: 4px solid; }
 .notice.error { background: var(--brick-bg); color: var(--brick); border-color: var(--brick); }
+.notice.warn { background: var(--amber-bg); color: var(--amber); border-color: var(--amber); }
 .notice.info { background: var(--info-bg); color: var(--info); border-color: var(--info); }
 .indent { border-left: 2px solid var(--line); margin-left: calc(var(--d, 0) * .9rem); }
 .mono { font-family: ui-monospace, "Cascadia Mono", Menlo, monospace; word-break: break-all; }

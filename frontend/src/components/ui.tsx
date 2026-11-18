@@ -4,7 +4,7 @@ import { useI18n } from "../i18n";
 import { pageRange, pageWindow } from "../lib/tableUtils";
 import { Icon, type IconName } from "./Icon";
 
-export function Notice({ kind = "info", children }: { kind?: "error" | "info"; children: ReactNode }) {
+export function Notice({ kind = "info", children }: { kind?: "error" | "warn" | "info"; children: ReactNode }) {
   return <div className={`notice ${kind}`} role={kind === "error" ? "alert" : "status"}>{children}</div>;
 }
 

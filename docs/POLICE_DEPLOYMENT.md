@@ -11,7 +11,7 @@ settings. One variable chooses the organization: `ARMYHQ_PROFILE=police`. The Ar
 - Districts, stations and Kooxo are added by authorized users in the app (the real names are theirs to enter). Every new
   station is created with two Kooxo, "Koox 1" and "Koox 2"; add more by hand. A city can have as many stations as it needs.
 - Uses the same 18-rank ladder as the Army. Internally the service branch keeps the code `ARMY`, labelled "Police".
-- Shows "Puntland Police Force HQ" instead of "Puntland Defence Forces HQ" (read from `/api/v1/profile/`).
+- Shows "Puntland Police HQ" instead of "Puntland Defence Forces HQ" (read from `/api/v1/profile/`).
 
 ## Set it up (free tier, about 30 minutes)
 1. **Repository:** copy this repo (a new private GitHub repo) or add a second Render service from the same repo.

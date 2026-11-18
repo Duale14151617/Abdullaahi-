@@ -121,6 +121,12 @@ PERMISSIONS = {
     "food.manage": "Receive food from suppliers, allocate it to units and record deliveries in scope (headquarters administrators and super administrator)",
     "orgprofile.configure": "Configure the organizational structure views: the department catalogue and which unit types stand for General Headquarters, regional commands, brigades and battalions (headquarters)",
     "departments.view_restricted": "See the named staff of restricted departments (finance, medical) in unit and department profiles and in the personnel directory, for units in scope",
+    "leave.own": "Request, see and cancel one's own leave",
+    "leave.request": "Request leave on behalf of personnel in scope and cancel such requests",
+    "leave.view": "See leave requests of personnel in scope",
+    "leave.approve": "Approve or reject leave requests in scope (never one's own)",
+    "roster.view": "See the duty roster for units in scope",
+    "roster.manage": "Set the duty roster for units in scope (nobody on approved leave can be rostered for duty)",
     "system.full_access": "Maintenance override: reach every part of the system even where a module switch (for example a module switch being off) would hide it. Super administrator only; every action stays in the audit log",
 }
 # Never granted to administrators by default (reports.configure is not sensitive, so hq_admin keeps it).
@@ -322,6 +328,12 @@ EXTRA = {
     "logistics_custodian": ["logistics.view", "logistics.manage", "logistics.reconcile", "logistics.report"],
     "training_admin": ["training.view", "training.manage", "training.report", "training.configure"],
 }
+for _role, _codes in {
+    "unit_commander": ["leave.own", "leave.request", "leave.view", "leave.approve", "roster.view", "roster.manage"],
+    "regional_commander": ["leave.own", "leave.view", "roster.view"],
+    "member": ["leave.own"],
+}.items():
+    EXTRA.setdefault(_role, []).extend(_codes)
 VEHICLE_CATEGORIES = [  # code, name_en, name_so, sort. Available categories only: seeding does not assert that the Police owns any vehicle of a type.
     ("ambulance", "Ambulance", "Gaari bakhaar", 10), ("armored_truck", "Armored truck", "Gawaari hubaysan", 20),
     ("hilux_4x4", "Hilux 4x4", "Hilux 4x4", 30), ("truck", "Truck", "Gawaari xamuul", 40), ("bus", "Bus", "Bas", 50),

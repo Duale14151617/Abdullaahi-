@@ -26,7 +26,7 @@ async function applyProfile(): Promise<void> {
     if (!p.profile || p.profile === "army" || !p.name_en || !p.name_so) return;
     const E = en as unknown as Record<string, string>;
     const S = so as unknown as Record<string, string>;
-    const army = "Puntland Defence Forces HQ";
+    const army = "Puntland Defence Forces HQ"; // legacy text; no longer present, so this is a no-op
     for (const k of Object.keys(E)) if (E[k].includes(army)) E[k] = E[k].split(army).join(p.name_en);
     for (const k of Object.keys(S)) if (S[k].includes(army)) S[k] = S[k].split(army).join(p.name_so);
     document.title = p.name_en;

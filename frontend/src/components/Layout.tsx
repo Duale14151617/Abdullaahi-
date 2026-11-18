@@ -30,7 +30,7 @@ const TAB_PATHS = HUBS.flatMap((h) => h.tabs);
 const NAV_SECTIONS: { key: string; title?: Key; to: string[] }[] = [
   { key: "top", to: ["/", "/notifications"] },
   { key: "units", title: "nav.group.units", to: ["/organization", "/structure", "/structure-changes", "/units"] },
-  { key: "people", title: "nav.group.people", to: ["/my-record", "/personnel", "/personnel-report", "/search", "/change-requests", "/attendance", "/training", "/ranks"] },
+  { key: "people", title: "nav.group.people", to: ["/my-record", "/personnel", "/personnel-report", "/search", "/change-requests", "/attendance", "/leave", "/training", "/ranks"] },
   { key: "pay", title: "nav.group.pay", to: ["/payroll", "/survivors"] },
   { key: "reporting", title: "nav.group.reporting", to: ["/reports", "/summary", "/analytics", "/tasks"] },
   { key: "logistics", title: "nav.group.logistics", to: ["/logistics", "/ammunition", "/ppe", "/weapons", "/vehicles", "/food"] },
@@ -76,6 +76,7 @@ export function Layout() {
     { to: "/payroll", icon: "list", label: "nav.payroll", show: can("payroll.view") },
     { to: "/survivors", icon: "users", label: "nav.survivors", show: can("survivor.view") },
     { to: "/attendance", icon: "check", label: "nav.attendance", show: can("attendance.view") },
+    { to: "/leave", icon: "check", label: "nav.leave", show: can("leave.view") || can("leave.own") || can("roster.view") },
     { to: "/units", icon: "building", label: "nav.units", show: can("org.view") },
     { to: "/change-requests", icon: "swap", label: "nav.changeRequests", show: can("changes.propose") || can("changes.approve") },
     { to: "/tasks", icon: "check", label: "nav.tasks", show: can("tasks.view") },

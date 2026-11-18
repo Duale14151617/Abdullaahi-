@@ -17,6 +17,7 @@ There is no XAMPP/WAMP/PHP in this project.
 | Personnel | Records, effective-dated history (rank, unit, status), transfers, duplicate detection, CSV import preview and commit, profile tabs (personal information, service record, assignments, attendance, training, administrative history). |
 | Ranks | Official 16-rank Army catalogue in English and Somali with draft and approval. |
 | Reports and approvals | Configurable report and request types, draft to approved workflow, separation of duties, revisions, notifications, scoped summaries. |
+| Leave and roster | Leave requests (ask, approve, reject, cancel) and a weekly duty roster per unit; nobody on approved leave can be rostered. |
 | Attendance, vehicles, weapons | Daily attendance by unit, vehicle registry with maintenance and assignment history, weapon register, ammunition ledger and soldier holdings. |
 | Logistics and training | Stock ledger, tracked assets, restricted equipment, reconciliation, course catalogue and training records. |
 | Payroll and survivors | Payroll runs, salary profiles, payments, arrears, pay decisions and survivor benefits, each step needing a different person. |
@@ -64,8 +65,8 @@ and the switches below. See `RENDER_DEPLOY_GUIDE.md` and `docs/DEPLOY_ROLLBACK.m
 `cd frontend && npm run build:preview` builds a standalone preview with built-in sample data (no backend); `API_ORIGIN=https://your-backend npm run build:netlify`
 builds against a real backend. Deploy `frontend/dist`, or connect the repo with Base directory `frontend`. See `docs/NETLIFY.md`.
 
-## Army-only build
-This build is Army-only.
+## Puntland Police build
+This build is branded Puntland Police everywhere users can see it. Internal names such as the `ARMYHQ_*` environment variables, command names and database codes are unchanged so existing deployments keep working.
 Useful commands: `create_command_authority`, `report_duplicate_identities`, `seed_test_personnel`, `remove_legacy_structure`, `access_report`.
 
 ## Documentation

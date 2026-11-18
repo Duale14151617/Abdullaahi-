@@ -279,7 +279,7 @@ a.kpi:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .topbar .brand-text, .nav-brand { white-space: normal; line-height: 1.15; font-size: .95rem; min-width: 0; }
 @media (min-width: 48rem) { .topbar .brand-text { font-size: 1.1rem; } }
 
-/* ================= Login page: cinematic Puntland Defence Forces HQ design =================
+/* ================= Login page: cinematic Puntland Police HQ design =================
    Deliberately dark in both themes (the page is a fixed brand composition). Background photos live in
    /public/login/ and are plain files: replace bg-left.jpg / bg-right.jpg to change the imagery. */
 .lp { --lp-gold: #E3B84F; --lp-gold-2: #D9A93A; --lp-ink: #06122A; --lp-blue: #9DB3D6;

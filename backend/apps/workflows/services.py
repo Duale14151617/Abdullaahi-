@@ -79,9 +79,9 @@ def validate_completeness(sub):
         raise field_error("body", "incomplete_submission")
 
 
-def reviewers_for(unit, exclude_ids=()):
+def reviewers_for(unit, exclude_ids=(), code="reports.review"):
     seen, users = set(), []
-    qs = (RoleAssignment.objects.effective().filter(role__permissions__code="reports.review")
+    qs = (RoleAssignment.objects.effective().filter(role__permissions__code=code)
           .select_related("user", "org_unit", "branch").distinct())
     for a in qs:
         if a.user_id in seen or a.user_id in exclude_ids or not scope.covers(a, unit):

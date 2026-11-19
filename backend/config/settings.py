@@ -71,6 +71,8 @@ INSTALLED_APPS = [
     "apps.training",
     "apps.attendance",
     "apps.leave",
+    "apps.promotion",
+    "apps.medical",
     "apps.weapons",
     "apps.ppe",
     "apps.equipment",

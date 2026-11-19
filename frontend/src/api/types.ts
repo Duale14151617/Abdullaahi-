@@ -162,6 +162,7 @@ export interface Summary {
 export interface NotificationItem {
   id: string; kind: string; created_at: string; read_at: string | null;
   submission: { id: string; title: string; status: string } | null;
+  leave?: { id: string; title: string; status: string } | null;
 }
 
 export interface InvCategory extends Named {

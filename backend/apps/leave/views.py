@@ -19,6 +19,7 @@ from apps.organization.models import OrganizationalUnit
 from apps.personnel.models import Personnel
 from apps.personnel.services import NOT_SERVING
 
+from . import notify
 from .models import LeaveRequest, LeaveType, RosterShift
 
 MAX_DAYS = 366
@@ -153,6 +154,7 @@ class LeaveViewSet(viewsets.ViewSet):
             audit("leave.requested", request=request, entity_type="leave", entity_id=r.pk,
                   metadata={"unit": person.org_unit.code, "type": ltype.code, "days": days})
         r = LeaveRequest.objects.select_related("personnel", "org_unit", "leave_type").get(pk=r.pk)
+        notify.pending(r)
         return Response(_out(r), status=201)
 
     def _decidable(self, request, pk):
@@ -180,6 +182,7 @@ class LeaveViewSet(viewsets.ViewSet):
             r.decided_at, r.decision_note = timezone.now(), note
             r.save(update_fields=["status", "decided_by_id", "decided_by_username", "decided_at", "decision_note"])
             audit(f"leave.{event}", request=request, entity_type="leave", entity_id=r.pk, metadata={"unit": r.org_unit.code})
+        notify.decided(r, f"leave_{status}", request.user)
         return Response(_out(r))
 
     @action(detail=True, methods=["post"])
@@ -204,6 +207,7 @@ class LeaveViewSet(viewsets.ViewSet):
             r.status = "cancelled"
             r.save(update_fields=["status"])
             audit("leave.cancelled", request=request, entity_type="leave", entity_id=r.pk, metadata={"unit": r.org_unit.code})
+        notify.cancelled(r, request.user)
         return Response(_out(r))
 
 

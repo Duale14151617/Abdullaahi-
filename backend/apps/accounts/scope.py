@@ -57,7 +57,7 @@ def covers(a, unit):
 
 # Permission families that touch personnel data. One extra server-side rule applies to them (see _blocked / unit_scope_q):
 # restricted units need `restricted.access` in the same assignment.
-GATED_PREFIXES = ("personnel.", "reports.", "training.", "logistics.", "analytics.", "restricted.", "disciplinary.", "documents.", "payroll.", "survivor.", "payment.", "arrears.", "vehicles.", "changes.", "food.", "tasks.")
+GATED_PREFIXES = ("personnel.", "reports.", "training.", "logistics.", "analytics.", "restricted.", "disciplinary.", "documents.", "payroll.", "survivor.", "payment.", "arrears.", "vehicles.", "changes.", "food.", "tasks.", "promotion.", "fitness.", "medical.")
 
 
 def _gates(user):

@@ -12,6 +12,8 @@ import { Account } from "./pages/Account";
 import { RecoverMfa } from "./pages/RecoverMfa";
 import { Attendance } from "./pages/Attendance";
 import { Leave } from "./pages/Leave";
+import { Promotion } from "./pages/Promotion";
+import { Fitness } from "./pages/Fitness";
 import { Ammunition } from "./pages/Ammunition";
 import { Weapons } from "./pages/Weapons";
 import { Inventories } from "./pages/Inventories";
@@ -99,6 +101,8 @@ export default function App() {
         <Route path="personnel/import" element={<PersonnelImport />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="leave" element={<Leave />} />
+        <Route path="promotion" element={<Promotion />} />
+        <Route path="fitness" element={<Fitness />} />
         <Route path="weapons" element={<Weapons />} />
         <Route path="inventories" element={<Inventories />} />
         <Route path="vehicles" element={<Vehicles />} />

@@ -17,7 +17,8 @@ class LeaveBase(PersonnelBase):
         self.unit_a = self.unit("BARI-ARMY-A")
         self.cmdr_user = self.make_user("leave.cmdr", "unit_commander", unit="BARI-ARMY-A")
         self.cmdr = self.client_for(self.cmdr_user)
-        self.other_cmdr = self.client_for(self.make_user("leave.other", "unit_commander", unit="BARI-ARMY-B"))
+        self.other_cmdr_user = self.make_user("leave.other", "unit_commander", unit="BARI-ARMY-B")
+        self.other_cmdr = self.client_for(self.other_cmdr_user)
         self.p1 = self.person("BARI-ARMY-A", "Soldier One")
         self.p2 = self.person("BARI-ARMY-A", "Soldier Two")
         self.member_user = self.make_user("leave.member", "member", unit="BARI-ARMY-A")
@@ -209,3 +210,74 @@ class LeaveInAttendanceTests(LeaveBase):
         self.assertEqual(services.unrecorded_leave_days(q, self.day, self.day, AttendanceRecord), 1)
         self.assertEqual(services.unrecorded_leave_days(q, self.day + timedelta(days=1), self.day + timedelta(days=1), AttendanceRecord), 0)
         self.assertIn("attendance_on_leave", situation.FIGURE_KEYS)
+
+
+N = "/api/v1/notifications/"
+
+
+class LeaveNotificationTests(LeaveBase):
+    """Approvers hear about a pending request; the requester hears how it was decided."""
+
+    def kinds(self, user):
+        from apps.workflows.models import Notification
+        return sorted(Notification.objects.filter(recipient=user).values_list("kind", flat=True))
+
+    def test_approvers_are_told_a_request_is_pending_and_nobody_else(self):
+        self.ask()
+        self.assertEqual(self.kinds(self.cmdr_user), ["leave_pending"])
+        self.assertEqual(self.kinds(self.member_user), [])  # not told about their own request
+        self.assertEqual(self.kinds(self.other_cmdr_user), [])  # another unit's commander is outside the scope
+
+    def test_the_requester_is_told_the_decision(self):
+        rid = self.ask().json()["id"]
+        self.cmdr.post(f"{L}{rid}/approve/", {}, format="json")
+        self.assertEqual(self.kinds(self.member_user), ["leave_approved"])
+        self.assertEqual(self.kinds(self.cmdr_user), ["leave_pending"])  # the decider is not told about their own decision
+        rid = self.ask(start_date=(self.day + timedelta(days=30)).isoformat(), end_date=(self.day + timedelta(days=31)).isoformat()).json()["id"]
+        self.cmdr.post(f"{L}{rid}/reject/", {"note": "Short-handed"}, format="json")
+        self.assertEqual(self.kinds(self.member_user), ["leave_approved", "leave_rejected"])
+
+    def test_a_request_made_on_someones_behalf_is_not_announced_to_its_maker_or_subject(self):
+        r = self.cmdr.post(L, self.lbody(personnel=str(self.p1.pk)), format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(self.kinds(self.cmdr_user), [])  # the commander made it, so is not asked to approve it
+        rid = r.json()["id"]
+        self.assertEqual(self.cmdr.post(f"{L}{rid}/approve/", {}, format="json").status_code, 403)  # own request: someone else decides
+        self.assertEqual(self.kinds(self.member_user), [])
+
+    def test_cancelling_tells_the_other_side(self):
+        rid = self.ask().json()["id"]
+        self.member.post(f"{L}{rid}/cancel/", {}, format="json")
+        self.assertEqual(self.kinds(self.cmdr_user), ["leave_cancelled", "leave_pending"])
+        rid = self.ask().json()["id"]
+        self.cmdr.post(f"{L}{rid}/cancel/", {}, format="json")
+        self.assertEqual(self.kinds(self.member_user), ["leave_cancelled"])
+
+    def test_the_notification_shows_the_request_and_never_more_than_the_reader_may_see(self):
+        self.ask()
+        item = self.cmdr.get(N).json()["results"][0]
+        self.assertEqual(item["kind"], "leave_pending")
+        self.assertIn("Soldier One", item["leave"]["title"])
+        # the commander moves out of scope after it was sent: the item stays, the detail goes
+        from apps.accounts.models import RoleAssignment
+        RoleAssignment.objects.filter(user=self.cmdr_user).update(org_unit=self.unit("BARI-ARMY-B"))
+        again = self.client_for(self.cmdr_user).get(N).json()["results"][0]
+        self.assertIsNone(again["leave"])
+
+    def test_a_failing_notification_never_blocks_the_request(self):
+        from unittest import mock
+        with mock.patch("apps.leave.notify.Notification.objects.bulk_create", side_effect=RuntimeError("down")):
+            self.assertEqual(self.ask().status_code, 201)
+
+
+class SuperAdministratorLeaveTests(LeaveBase):
+    def test_sees_all_leave_and_roster_and_is_notified(self):
+        sa_user = self.make_user("leave.sa", "super_admin")
+        sa = self.client_for(sa_user)
+        rid = self.ask().json()["id"]
+        self.assertEqual([x["id"] for x in sa.get(L).json()["results"]], [rid])
+        self.assertEqual(sa.post(f"{L}{rid}/approve/", {}, format="json").json()["status"], "approved")
+        d = sa.get(R, {"org_unit": str(self.unit_a.pk), "from": self.day.isoformat(), "to": (self.day + timedelta(days=2)).isoformat()})
+        self.assertEqual((d.status_code, len(d.json()["people"]), len(d.json()["leave"])), (200, 2, 1))
+        from apps.workflows.models import Notification
+        self.assertTrue(Notification.objects.filter(recipient=sa_user, kind="leave_pending").exists())

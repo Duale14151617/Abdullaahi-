@@ -18,6 +18,8 @@ There is no XAMPP/WAMP/PHP in this project.
 | Ranks | Official 16-rank Army catalogue in English and Somali with draft and approval. |
 | Reports and approvals | Configurable report and request types, draft to approved workflow, separation of duties, revisions, notifications, scoped summaries. |
 | Leave and roster | Leave requests (ask, approve, reject, cancel) and a weekly duty roster per unit; nobody on approved leave can be rostered. |
+| Promotion eligibility | Time in rank against a minimum for each rank (rules set by the super administrator). Advisory only; it never changes a rank. |
+| Fitness for duty | Encrypted, append-only fitness entries. Commanders see status, review date and duty restriction; medical details are for the medical officer only. |
 | Attendance, vehicles, weapons | Daily attendance by unit, vehicle registry with maintenance and assignment history, weapon register, ammunition ledger and soldier holdings. |
 | Logistics and training | Stock ledger, tracked assets, restricted equipment, reconciliation, course catalogue and training records. |
 | Payroll and survivors | Payroll runs, salary profiles, payments, arrears, pay decisions and survivor benefits, each step needing a different person. |

@@ -127,6 +127,11 @@ PERMISSIONS = {
     "leave.approve": "Approve or reject leave requests in scope (never one's own)",
     "roster.view": "See the duty roster for units in scope",
     "roster.manage": "Set the duty roster for units in scope (nobody on approved leave can be rostered for duty)",
+    "promotion.view": "See promotion eligibility (time in rank against the rules) for personnel in scope",
+    "promotion.configure": "Set the minimum time in rank for each rank (policy, super administrator only)",
+    "fitness.view": "See fitness for duty (status, review date, duty restriction) for personnel in scope; every view is audited",
+    "medical.view": "See the medical details behind a fitness entry (encrypted, medical officer only; every view is audited)",
+    "medical.manage": "Record and correct fitness and medical entries in scope (append-only)",
     "system.full_access": "Maintenance override: reach every part of the system even where a module switch (for example a module switch being off) would hide it. Super administrator only; every action stays in the audit log",
 }
 # Never granted to administrators by default (reports.configure is not sensitive, so hq_admin keeps it).
@@ -149,6 +154,7 @@ HQ_ADMIN_RESERVED = frozenset({
     "tax.confirm",                                                         # counting and confirming cash
     "restricted.access", "search.cross_service", "reports.combined",              # restricted units and command-level views
     "disciplinary.view", "disciplinary.manage",                            # disciplinary history stays with branch administrators
+    "promotion.configure", "medical.view", "medical.manage",              # promotion policy; medical details stay with the medical officer
     "integrations.manage",                                                 # API clients are a back door if misused
 })
 TAX_TYPES = [  # code, kind, English, Somali (working translation), recurring, sort
@@ -186,6 +192,8 @@ ROLES = {
                           BASIC + ["personnel.view", "reports.view", "reports.submit"]),
     "logistics_custodian": ("Logistics custodian", "Ilaaliyaha saadka", False, False, [],
                             ["dashboard.view", "org.view"]),
+    "medical_officer": ("Medical officer", "Sarkaalka caafimaadka", True, False, [],
+                        ["dashboard.view", "org.view", "personnel.view", "fitness.view", "medical.view", "medical.manage"]),
     "training_admin": ("Training administrator", "Maamulaha tababarka", False, False, [],
                        ["dashboard.view", "org.view"]),
     "restricted_custodian": ("Restricted equipment custodian", "Ilaaliyaha qalabka xaddidan", True, False, [],
@@ -329,8 +337,9 @@ EXTRA = {
     "training_admin": ["training.view", "training.manage", "training.report", "training.configure"],
 }
 for _role, _codes in {
-    "unit_commander": ["leave.own", "leave.request", "leave.view", "leave.approve", "roster.view", "roster.manage"],
-    "regional_commander": ["leave.own", "leave.view", "roster.view"],
+    "unit_commander": ["leave.own", "leave.request", "leave.view", "leave.approve", "roster.view", "roster.manage",
+                       "promotion.view", "fitness.view"],
+    "regional_commander": ["leave.own", "leave.view", "roster.view", "promotion.view", "fitness.view"],
     "member": ["leave.own"],
 }.items():
     EXTRA.setdefault(_role, []).extend(_codes)

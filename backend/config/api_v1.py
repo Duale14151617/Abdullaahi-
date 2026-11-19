@@ -15,6 +15,8 @@ from apps.logistics.views import (AmmunitionViewSet, AssetViewSet, CategoryViewS
                                   StockViewSet)
 from apps.attendance.views import AttendanceViewSet
 from apps.leave.views import LeaveViewSet, RosterViewSet
+from apps.medical.views import FitnessViewSet
+from apps.promotion.views import PromotionViewSet
 from apps.weapons.control_views import AmmoControlViewSet
 from apps.weapons.views import WeaponViewSet
 from apps.ppe.views import PpeViewSet
@@ -80,6 +82,8 @@ router.register("logistics/food/options", FoodOptionsViewSet, basename="food-opt
 router.register("attendance", AttendanceViewSet, basename="attendance")
 router.register("leave", LeaveViewSet, basename="leave")
 router.register("roster", RosterViewSet, basename="roster")
+router.register("promotion", PromotionViewSet, basename="promotion")
+router.register("fitness", FitnessViewSet, basename="fitness")
 router.register("weapons", WeaponViewSet, basename="weapons")
 router.register("ammo-control", AmmoControlViewSet, basename="ammo-control")
 router.register("ppe", PpeViewSet, basename="ppe")

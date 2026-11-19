@@ -6,11 +6,11 @@ import { Chip, ErrorNotice, Field, Notice, PageHeader, TabPanel, Tabs } from "..
 import { UnitPicker } from "../components/UnitPicker";
 import { useI18n, type Key } from "../i18n";
 
-interface Named { code: string; name_en: string; name_so: string }
+interface Named { id: string; code: string; name_en: string; name_so: string }
 type State = "eligible" | "not_yet" | "blocked" | "no_rule";
 interface Row {
   personnel: { id: string; full_name: string; service_number: string | null; status: string };
-  unit: Named; rank: Named; next_rank: Named | null; rank_since: string; since_source: "history" | "record";
+  unit: Omit<Named, "id">; rank: Named; next_rank: Named | null; rank_since: string; since_source: "history" | "record";
   months: number; required: number | null; months_left: number | null; state: State;
 }
 interface RankRule { id: string; code: string; name_en: string; name_so: string; rule: { min_months: number; active: boolean; next_rank: Named | null } | null }

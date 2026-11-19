@@ -63,5 +63,5 @@ PROFILES = {
 
 class ProfileView(_Public):
     def get(self, request):
-        profile = getattr(settings, "ARMYHQ_PROFILE", "army")
+        profile = getattr(settings, "POLICEHQ_PROFILE", "army")
         return JsonResponse({"profile": profile, **PROFILES.get(profile, PROFILES["army"])})

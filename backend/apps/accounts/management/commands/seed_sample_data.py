@@ -1,4 +1,4 @@
-"""Synthetic sample users and units. NEVER use with real data. Explicit sample mode only (ARMYHQ_SAMPLE_MODE; the older ARMYHQ_DEMO_* names still work)."""
+"""Synthetic sample users and units. NEVER use with real data. Explicit sample mode only (POLICEHQ_SAMPLE_MODE; the older ARMYHQ_* and ARMYHQ_DEMO_* names still work)."""
 import os
 
 from django.conf import settings
@@ -9,6 +9,7 @@ from django.db import transaction
 
 from apps.accounts.models import Role, RoleAssignment, User
 from apps.accounts.services import revoke_user_sessions, temp_password_deadline
+from apps.core import env as hqenv
 from apps.organization.models import OrganizationalUnit as OU
 from apps.organization.models import ServiceBranch
 from apps.personnel import services as personnel_services
@@ -17,9 +18,9 @@ from apps.ranks.models import Rank
 
 # username: (full name, role, org unit code, branch code or None)
 # Usernames have no "demo." prefix. Older deployments that already have "demo.<name>" accounts are renamed in place below.
-def _env(new, old, default=""):
-    """New variable name first; the old ARMYHQ_DEMO_* name keeps working so existing deployments need no dashboard change."""
-    return os.environ.get(new) or os.environ.get(old, default)
+def _env(suffix, default="", legacy=()):
+    """POLICEHQ_<suffix> first; the older ARMYHQ_<suffix> and ARMYHQ_DEMO_* names keep working so existing deployments need no dashboard change."""
+    return hqenv.get(suffix, default, legacy)
 
 
 SAMPLE_USERS = {
@@ -108,29 +109,30 @@ SAMPLE_USERS.setdefault("tax.cashier", ("Tax Cash Officer", "tax_cashier", "HQ",
 
 
 # Sample accounts that stay enabled. Every other sample account is created DISABLED and is disabled again on each run, because they
-# all share one seed password. Enable more only on purpose: ARMYHQ_SAMPLE_ACTIVE_USERS="superadmin,hqadmin,bari.reporter" (comma list).
+# all share one seed password. Enable more only on purpose: POLICEHQ_SAMPLE_ACTIVE_USERS="superadmin,hqadmin,bari.reporter" (comma list).
 DEFAULT_ACTIVE_SAMPLE_USERS = ("superadmin", "hqadmin")
 
 
 def _active_sample_usernames():
-    raw = os.environ.get("ARMYHQ_SAMPLE_ACTIVE_USERS")
+    # set (even to an empty list) means exactly that list; unset means the default two accounts
+    raw = next((os.environ[n] for n in ("POLICEHQ_SAMPLE_ACTIVE_USERS", "ARMYHQ_SAMPLE_ACTIVE_USERS") if n in os.environ), None)
     names = [n.strip().lower() for n in raw.split(",")] if raw is not None else list(DEFAULT_ACTIVE_SAMPLE_USERS)
     return {n for n in names if n}
 
 
 class Command(BaseCommand):
-    help = "Create synthetic sample accounts. Password from ARMYHQ_SAMPLE_PASSWORD (min 12 chars)."
+    help = "Create synthetic sample accounts. Password from POLICEHQ_SAMPLE_PASSWORD (min 12 chars)."
 
     @transaction.atomic
     def handle(self, *args, **opts):
         # Production DEBUG stays off. This separate, explicit flag permits only synthetic sample fixtures
         # on a deliberately configured sample deployment; never enable it for real operational data.
-        sample_mode = _env("ARMYHQ_SAMPLE_MODE", "ARMYHQ_DEMO_MODE", "0").strip().lower() in ("1", "true", "yes", "on")
+        sample_mode = _env("SAMPLE_MODE", "0", legacy=("DEMO_MODE",)).strip().lower() in ("1", "true", "yes", "on")
         if not settings.DEBUG and not sample_mode:
-            raise CommandError("Sample data is disabled. Set ARMYHQ_SAMPLE_MODE=1 only for a synthetic sample deployment.")
-        password = _env("ARMYHQ_SAMPLE_PASSWORD", "ARMYHQ_DEMO_PASSWORD", "")
+            raise CommandError("Sample data is disabled. Set POLICEHQ_SAMPLE_MODE=1 only for a synthetic sample deployment.")
+        password = _env("SAMPLE_PASSWORD", "", legacy=("DEMO_PASSWORD",))
         if len(password) < 12:
-            raise CommandError("Set ARMYHQ_SAMPLE_PASSWORD (12+ characters).")
+            raise CommandError("Set POLICEHQ_SAMPLE_PASSWORD (12+ characters).")
         active_names = _active_sample_usernames()
         army_cmd = OU.objects.filter(code="BARI-ARMY").first()
         if not army_cmd:
@@ -162,7 +164,7 @@ class Command(BaseCommand):
                 if username not in active_names and user.is_active:
                     User.objects.filter(pk=user.pk).update(is_active=False)  # shared seed password: off unless listed on purpose
                     revoke_user_sessions(user)
-                if _env("ARMYHQ_SAMPLE_RESET", "ARMYHQ_DEMO_RESET", "0") == "1":
+                if _env("SAMPLE_RESET", "0", legacy=("DEMO_RESET",)) == "1":
                     user.set_password(password)
                     user.must_change_password = True
                     user.temp_password_expires_at = temp_password_deadline()

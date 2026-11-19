@@ -346,7 +346,7 @@ class OversightTests(UnitBase):
         self.assertEqual(admin.get(OVR + "hierarchy/").status_code, 200)
 
 
-@override_settings(ARMYHQ_PROFILE="police")
+@override_settings(POLICEHQ_PROFILE="police")
 class HierarchyAndSetupTests(TestCase):
     @classmethod
     def setUpTestData(cls):

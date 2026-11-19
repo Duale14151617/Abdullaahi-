@@ -416,7 +416,7 @@ class Command(BaseCommand):
             region = OU.objects.filter(code=name.upper()).first() or OU.objects.create(
                 code=name.upper(), name_en=name, name_so=name, level=OU.Level.REGION, parent=hq)
             for bcode, b in branches.items():
-                if getattr(settings, "ARMYHQ_PROFILE", "army") == "police":
+                if getattr(settings, "POLICEHQ_PROFILE", "army") == "police":
                     break  # the Police deployment builds its own regional commands (apply_police_structure)
                 OU.objects.filter(code=f"{region.code}-{bcode}").first() or OU.objects.create(
                     code=f"{region.code}-{bcode}", name_en=f"{name} {b.name_en}",
@@ -427,7 +427,7 @@ class Command(BaseCommand):
         created, removed, deactivated = apply_official_ranks(Rank, Personnel, army, timezone.now())
         # Organizational template (Taliska Guud ... Unug), specialist designations and the expected relationships.
         types = ensure_reference(UnitType, SpecialistDesignation, DesignationRule)
-        if getattr(settings, "ARMYHQ_PROFILE", "army") != "police":
+        if getattr(settings, "POLICEHQ_PROFILE", "army") != "police":
             tag_regional_army_commands(OU, ServiceBranch, types)
         for code, so, en, utype, exclusive in APPOINTMENT_TYPES:  # created once; administrator edits are never overwritten
             AppointmentType.objects.get_or_create(code=code, defaults={

@@ -1,11 +1,12 @@
-"""Promotion eligibility by rank and time in rank. Advisory only: nothing here changes a rank."""
+"""Promotion eligibility by rank and time in rank. The list is advisory; a proposal only creates rank-change requests in the
+normal approval queue (Police order, super administrator decision), it never changes a rank itself."""
 import uuid
-from datetime import date
 
-from django.db.models import Q
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.response import Response
 
 from apps.accounts import scope
@@ -14,16 +15,19 @@ from apps.audit.services import record as audit
 from apps.audit.services import record_read
 from apps.core.errors import field_error
 from apps.core.params import json_body, uuid_param
+from apps.organization import change_requests
 from apps.organization.models import OrganizationalUnit
-from apps.personnel.models import Personnel, PersonnelHistory
+from apps.personnel.models import Personnel
 from apps.personnel.services import NOT_SERVING
 from apps.ranks.models import Rank
 
+from . import services
 from .models import PromotionRule
 
 MAX_PEOPLE = 1000
-RETIRED_FROM = 1000  # retired ranks are parked at 1000+ and never compared (see Rank.sort_order)
-BLOCKING_STATUS = {"suspended", "jailed"}
+MAX_PROPOSE = 100
+RETIRED_FROM = services.RETIRED_FROM
+months_between = services.months_between  # kept importable from here
 
 
 def _uid(value):
@@ -33,27 +37,14 @@ def _uid(value):
         return None
 
 
-def months_between(start: date, end: date) -> int:
-    """Whole months from start to end (never negative)."""
-    m = (end.year - start.year) * 12 + (end.month - start.month) - (1 if end.day < start.day else 0)
-    return max(0, m)
-
-
 def _rank_out(r):
     return {"id": str(r.pk), "code": r.code, "name_en": r.name_en, "name_so": r.name_so}
 
 
-def _next_rank(rule, rank, by_branch):
-    """The rank this one is promoted to: the one named in the rule, else the next active, approved rank up in the same branch."""
-    if rule.next_rank_id:
-        return rule.next_rank
-    ups = [r for r in by_branch.get(rank.branch_id, []) if rank.sort_order < r.sort_order < RETIRED_FROM]
-    return min(ups, key=lambda r: r.sort_order) if ups else None
-
-
 class PromotionViewSet(viewsets.ViewSet):
     permission_classes = [ScopedPermission]
-    permission_map = {"eligibility": ("promotion.view", "any"), "rules": ("promotion.view", "any"), "set_rule": ("promotion.configure", "any")}
+    permission_map = {"eligibility": ("promotion.view", "any"), "rules": ("promotion.view", "any"), "set_rule": ("promotion.configure", "any"),
+                      "propose": ("changes.propose", "global")}
     queryset = PromotionRule.objects.none()
 
     @action(detail=False, methods=["get"])
@@ -66,34 +57,18 @@ class PromotionViewSet(viewsets.ViewSet):
         q = scope.unit_scope_q(request.user, "promotion.view", "org_unit__")
         people = list(Personnel.objects.filter(q, org_unit__path__startswith=unit.path).exclude(status__in=NOT_SERVING)
                       .select_related("rank", "org_unit").order_by("-rank__sort_order", "full_name").distinct()[:MAX_PEOPLE])
-        rules = {r.rank_id: r for r in PromotionRule.objects.filter(active=True).select_related("next_rank")}
-        by_branch = {}
-        for r in Rank.objects.filter(active=True, sort_order__lt=RETIRED_FROM):
-            by_branch.setdefault(r.branch_id, []).append(r)
-        since = {}
-        for h in PersonnelHistory.objects.filter(personnel_id__in=[p.pk for p in people], field="rank").order_by("-effective_date", "-recorded_at"):
-            since.setdefault(h.personnel_id, (h.effective_date, bool(h.old_ref)))  # latest rank entry per person; no old rank = first entry
         today, wanted = timezone.localdate(), request.query_params.get("state")
-        rows, counts = [], {"eligible": 0, "not_yet": 0, "blocked": 0, "no_rule": 0}
-        for p in people:
-            rule = rules.get(p.rank_id)
-            start, changed = since.get(p.pk) or (p.created_at.date(), False)
-            source = "history" if changed else "record"  # "record": the date the rank was first entered, not a recorded promotion
-            months = months_between(start, today)
-            if rule is None:
-                state, nxt = "no_rule", None
-            else:
-                nxt = _next_rank(rule, p.rank, by_branch)
-                state = "blocked" if p.status in BLOCKING_STATUS else "eligible" if months >= rule.min_months and nxt else "not_yet"
-            counts[state] += 1
-            if wanted and wanted != state:
+        rows, counts = [], {k: 0 for k in services.STATES}
+        for e in services.evaluate(people, today):
+            p, nxt = e["person"], e["next_rank"]
+            counts[e["state"]] += 1
+            if wanted and wanted != e["state"]:
                 continue
             rows.append({"personnel": {"id": str(p.pk), "full_name": p.full_name, "service_number": p.service_number, "status": p.status},
                          "unit": {"code": p.org_unit.code, "name_en": p.org_unit.name_en, "name_so": p.org_unit.name_so},
                          "rank": _rank_out(p.rank), "next_rank": _rank_out(nxt) if nxt else None,
-                         "rank_since": start.isoformat(), "since_source": source, "months": months,
-                         "required": rule.min_months if rule else None,
-                         "months_left": max(0, rule.min_months - months) if rule else None, "state": state})
+                         "rank_since": e["rank_since"].isoformat(), "since_source": e["since_source"], "months": e["months"],
+                         "required": e["required"], "months_left": e["months_left"], "state": e["state"]})
         record_read(request, "promotion.read", entity_type="promotion", org_unit=unit, count=len(rows))
         return Response({"org_unit": str(unit.pk), "counts": counts, "results": rows})
 
@@ -133,3 +108,49 @@ class PromotionViewSet(viewsets.ViewSet):
         audit("promotion.rule_set", request=request, entity_type="promotion", entity_id=rank.pk,
               metadata={"rank": rank.code, "months": months, "active": rule.active})
         return Response({"rank": rank.code, "min_months": rule.min_months, "active": rule.active}, status=201)
+
+    @action(detail=False, methods=["post"])
+    def propose(self, request):
+        """{items: [{personnel}], order_ref, issuing_officer, order_date, effective_date?}. Turns eligible people into rank-change
+        requests in the normal approval queue, each carrying the Police order that authorizes it. Eligibility is worked out again
+        here, so a proposal cannot be made for someone the list would not show as eligible. All rows are checked first: if any
+        is wrong nothing is created. As everywhere in the queue, a super administrator's own proposal is applied at once."""
+        d = json_body(request)
+        items = d.get("items")
+        if not isinstance(items, list) or not items or len(items) > MAX_PROPOSE:
+            raise field_error("items", "items_invalid", "Choose between 1 and 100 people.")
+        day = d.get("effective_date") or timezone.localdate().isoformat()
+        errors, created = [], []
+        with transaction.atomic():
+            seen = set()
+            for i, item in enumerate(items):
+                pid = _uid(item.get("personnel")) if isinstance(item, dict) else None
+                person = Personnel.objects.select_related("rank", "org_unit").filter(pk=pid).first() if pid else None
+                if person is None or not scope.can(request.user, "promotion.view", unit=person.org_unit):
+                    errors.append({"index": i, "code": "personnel_not_found"})
+                    continue
+                if pid in seen:
+                    errors.append({"index": i, "code": "duplicate_entry"})
+                    continue
+                seen.add(pid)
+                e = services.evaluate([person])[0]
+                if e["state"] != "eligible":
+                    errors.append({"index": i, "code": "not_eligible", "state": e["state"]})
+                    continue
+                payload = {"personnel": pid, "rank": str(e["next_rank"].pk), "effective_date": day,
+                           "reason": f"Promotion: {e['months']} months in rank (minimum {e['required']})"}
+                try:
+                    created.append(change_requests.propose(request.user, request, kind="rank_change", payload=payload,
+                                                           order_ref=d.get("order_ref"), issuing_officer=d.get("issuing_officer"),
+                                                           order_date=d.get("order_date")))
+                except (ValidationError, APIException) as exc:
+                    detail = change_requests._flat(exc.detail)
+                    errors.append({"index": i, "code": detail[0]["code"] if detail else "invalid", "field": detail[0]["field"] if detail else ""})
+            if errors:
+                transaction.set_rollback(True)
+            else:
+                audit("promotion.propose", request=request, entity_type="promotion", metadata={"count": len(created)})
+        if errors:
+            return Response({"code": "promotion_invalid", "detail": "Fix the listed people; nothing was created.", "rows": errors}, status=400)
+        return Response({"count": len(created), "results": [{"personnel": r.payload["personnel"], "request": str(r.pk), "status": r.status,
+                                                              "self_approved": r.self_approved, "summary": r.summary} for r in created]}, status=201)

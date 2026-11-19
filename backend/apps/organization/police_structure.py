@@ -1,4 +1,4 @@
-"""Police organizational structure (the separate Police deployment, ARMYHQ_PROFILE=police).
+"""Police organizational structure (the separate Police deployment, POLICEHQ_PROFILE=police).
 
 Everything is DATA in the existing tables (unit types, appointment types, units), so it stays configurable with the normal
 tools. Shape created:

@@ -1,6 +1,6 @@
 # Police Fleet Management (Police Vehicles)
 
-The fleet module is the vehicle register in `apps/vehicles`. In the Police deployment (`ARMYHQ_PROFILE=police`) the command
+The fleet module is the vehicle register in `apps/vehicles`. In the Police deployment (`POLICEHQ_PROFILE=police`) the command
 `apply_police_fleet --apply` runs at every start and creates the Police vehicle types under the main category **Police Vehicles**.
 It only creates what is missing and never overwrites an edit. Somali names are working labels to confirm with the Police.
 

@@ -20,7 +20,7 @@ function doPost(e) {
 4. Deploy -> New deployment -> type "Web app". Execute as: **Me**. Who has access: **Anyone**. Authorize when asked.
 5. Copy the Web app URL (ends in /exec).
 6. On Render set `APPS_SCRIPT_URL` = that URL and `APPS_SCRIPT_TOKEN` = the same SECRET. Remove `BREVO_API_KEY`.
-7. Set `ARMYHQ_SITE_URL` = https://policehq.onrender.com so reset emails contain a link.
+7. Set `POLICEHQ_SITE_URL` = https://policehq.onrender.com so reset emails contain a link.
 
 Limits: a consumer Gmail account can send about 100 recipients per day through Apps Script, far above this app's volume.
 Anyone with the URL AND the secret can send as the account, so keep both private and rotate the secret if either leaks.

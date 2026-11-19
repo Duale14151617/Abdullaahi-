@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Rename: POLICEHQ_* environment variables
+- Settings are now read through `apps/core/env.py`: `POLICEHQ_<NAME>` first, then the older `ARMYHQ_<NAME>` (and the oldest `ARMYHQ_DEMO_*`), so **existing deployments need no change**. When both are set the `POLICEHQ_*` one wins; a blank value counts as not set, so a blank new variable never hides the old one. The Django setting `ARMYHQ_PROFILE` is now `POLICEHQ_PROFILE`; the Dockerfile start command, `render.yaml`, `.env.example`, `docker-compose.local.yml` and the guides use the new names. The React component `ArmyStrength` is now `PoliceStrength`.
+- Deliberately not renamed (renaming would change live data or behaviour): database and role names, `ARMY` branch and unit codes, the `*_army_structure` commands and modules (they describe the Army profile), Render resource names, session cookie names (renaming signs everyone out once), logger names and the `armyhq.E…` check ids.
+
+### Promotion proposals
+- On the promotion screen, people with `changes.propose` (headquarters administrator, super administrator) can select eligible people and **propose** their promotion. Each becomes a rank-change request in the normal change-request queue with the Police order reference, issuing officer and order date, decided by the super administrator (a super administrator's own proposal is applied at once, as everywhere in the queue). Eligibility is worked out again on the server, all rows are checked first and nothing is created if any is wrong, and someone with a request already waiting cannot be proposed twice.
+- The next rank is the very next rank up in the same service, never skipped: if it is not approved yet the person shows as "No approved rank to promote to" and cannot be proposed.
+
 ### Leave requests and duty roster
 - **Leave:** members ask for their own leave and commanders can ask for people in their unit. A commander with approval rights approves or rejects (a reason is required to reject); nobody decides their own request (only the super administrator, audited). Pending or approved leave can be cancelled before it starts. Overlapping leave for one person is refused. Leave types are data (annual, sick, compassionate, study, other; annual is capped at 30 days).
 - **Roster:** a weekly duty roster per unit (day, night, standby, off). Someone on approved leave cannot be rostered for duty; the roster shows approved leave in the grid.

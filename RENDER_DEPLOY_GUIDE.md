@@ -6,7 +6,7 @@ This package adds a Render Blueprint and a single-origin Docker deployment. It k
 
 - This is a fully functional system deployed on Render. Keep the `FIELD_ENCRYPTION_KEY` and all passwords secret.
 - Render's free PostgreSQL plan is temporary (currently 30 days) and may be subject to plan/region availability. Export anything you need to keep.
-- The `ARMYHQ_SAMPLE_PASSWORD` environment variable sets one shared password for the synthetic sample accounts created by the project's sample seed command. Use a unique password of at least 12 characters; do not reuse a personal password. Privileged sample roles require MFA enrolment at first login.
+- The `POLICEHQ_SAMPLE_PASSWORD` environment variable sets one shared password for the synthetic sample accounts created by the project's sample seed command. Use a unique password of at least 12 characters; do not reuse a personal password. Privileged sample roles require MFA enrolment at first login.
 - The FIELD_ENCRYPTION_KEY must remain stable after the first deployment, otherwise encrypted MFA secrets cannot be decrypted. Do not rotate it casually.
 
 ## Deploy from an Android phone
@@ -14,7 +14,7 @@ This package adds a Render Blueprint and a single-origin Docker deployment. It k
 1. Extract this ZIP and upload the entire `policehq-v2.1.2` folder contents to a **private GitHub repository**. Keep `Dockerfile` and `render.yaml` in the repository root, beside `frontend/` and `backend/`.
 2. Open https://dashboard.render.com/ and choose **New + → Blueprint**.
 3. Connect the repository containing `render.yaml`, then choose **Apply**. Render should create `policehq` and `policehq-db` from the blueprint. Review the plan and any charges shown before confirming.
-4. Open the `policehq` web service → **Environment**. Set `FIELD_ENCRYPTION_KEY` to a valid Fernet key and set `ARMYHQ_SAMPLE_PASSWORD` to a unique password (12+ characters). Keep both secret. Save changes and redeploy if requested.
+4. Open the `policehq` web service → **Environment**. Set `FIELD_ENCRYPTION_KEY` to a valid Fernet key and set `POLICEHQ_SAMPLE_PASSWORD` to a unique password (12+ characters). Keep both secret. Save changes and redeploy if requested.
 5. Generate a Fernet key using a trusted local Python environment with `cryptography` installed:
 
    ```python
@@ -28,7 +28,7 @@ This package adds a Render Blueprint and a single-origin Docker deployment. It k
 
 ## Sample accounts
 
-The `seed_sample_data` command creates synthetic usernames documented in `docs/SETUP.md` (for example `hqadmin`, `hqreports`, `auditor`, `bari.chief`, and others). They all use the password set in `ARMYHQ_SAMPLE_PASSWORD`. Privileged roles must enrol an authenticator app at first login. Keep this sample site unlisted and do not use real data.
+The `seed_sample_data` command creates synthetic usernames documented in `docs/SETUP.md` (for example `hqadmin`, `hqreports`, `auditor`, `bari.chief`, and others). They all use the password set in `POLICEHQ_SAMPLE_PASSWORD`. Privileged roles must enrol an authenticator app at first login. Keep this sample site unlisted and do not use real data.
 
 ## What this deployment configuration does
 
@@ -36,7 +36,7 @@ The `seed_sample_data` command creates synthetic usernames documented in `docs/S
 - Serves React and `/api/v1/*` from one origin.
 - Uses Render PostgreSQL, runs migrations and idempotent reference/sample seed commands at container start.
 - Keeps Django debug off, uses generated Django secret key, disables export/integrations by default, and uses HTTPS provided by Render.
-- Runs synthetic sample seeding only when `ARMYHQ_SAMPLE_MODE=1` is explicitly set.
+- Runs synthetic sample seeding only when `POLICEHQ_SAMPLE_MODE=1` is explicitly set.
 
 ## Important notes
 
@@ -48,6 +48,8 @@ The `seed_sample_data` command creates synthetic usernames documented in `docs/S
 
 Render's free plan has no shell, so this is controlled by one environment variable on the `policehq` service:
 
-- **Add 150 test people:** Environment -> add `ARMYHQ_TEST_PERSONNEL` = `150` -> Save. Render redeploys and the start command tops up to 150 people (service numbers `TST-0001` to `TST-0150`, unique Somali names, varied ranks, spread over Bari, Nugaal and Mudug), each with a filled identity profile (blood type, gender, date of birth, enlistment date, home district, emergency contact, a weapon ID for about 3 in 4, and a neutral placeholder portrait). People already created earlier get their profile filled on the next deploy without being recreated.
-- **Remove them all:** set `ARMYHQ_TEST_PERSONNEL` to `0` (or delete the variable) -> Save. On the redeploy every `TST-` person and their history is deleted. Real records are never touched.
+- **Add 150 test people:** Environment -> add `POLICEHQ_TEST_PERSONNEL` = `150` -> Save. Render redeploys and the start command tops up to 150 people (service numbers `TST-0001` to `TST-0150`, unique Somali names, varied ranks, spread over Bari, Nugaal and Mudug), each with a filled identity profile (blood type, gender, date of birth, enlistment date, home district, emergency contact, a weapon ID for about 3 in 4, and a neutral placeholder portrait). People already created earlier get their profile filled on the next deploy without being recreated.
+- **Remove them all:** set `POLICEHQ_TEST_PERSONNEL` to `0` (or delete the variable) -> Save. On the redeploy every `TST-` person and their history is deleted. Real records are never touched.
 - With a shell you can also run `python manage.py seed_test_personnel --count 150` or `--delete`.
+
+> **Variable names:** this guide uses the `POLICEHQ_*` names. Deployments set up with the older `ARMYHQ_*` names keep working unchanged; if both exist, the `POLICEHQ_*` one is used.

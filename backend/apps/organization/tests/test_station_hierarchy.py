@@ -8,7 +8,7 @@ from apps.organization import police_structure as ps, profiles
 from apps.organization.models import OrganizationalUnit as OU, UnitDepartment
 
 
-@override_settings(ARMYHQ_PROFILE="police")
+@override_settings(POLICEHQ_PROFILE="police")
 class StationHierarchyTests(TestCase):
     @classmethod
     def setUpTestData(cls):

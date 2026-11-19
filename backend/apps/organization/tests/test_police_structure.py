@@ -8,7 +8,7 @@ from apps.organization.models import OrganizationalUnit as OU, ServiceBranch, Un
 from apps.personnel.models import AppointmentType
 
 
-@override_settings(ARMYHQ_PROFILE="police")
+@override_settings(POLICEHQ_PROFILE="police")
 class PoliceStructureTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -86,7 +86,7 @@ class PoliceStructureTests(TestCase):
         self.assertTrue(t["POLICE_HQ"] < t["POLICE_REGION"] < t["POLICE_DISTRICT"] < t["POLICE_STATION"] < t["POLICE_KOOX"])
 
 
-@override_settings(ARMYHQ_PROFILE="police")
+@override_settings(POLICEHQ_PROFILE="police")
 class GenericStationTests(TestCase):
     @classmethod
     def setUpTestData(cls):

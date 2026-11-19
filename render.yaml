@@ -10,7 +10,7 @@ services:
     dockerContext: .
     healthCheckPath: /api/v1/health/live/
     envVars:
-      - key: ARMYHQ_PROFILE
+      - key: POLICEHQ_PROFILE
         value: police
       - key: DJANGO_DEBUG
         value: "0"
@@ -18,7 +18,7 @@ services:
         sync: false
       - key: FIELD_ENCRYPTION_KEY
         sync: false
-      - key: ARMYHQ_ADMIN_PASSWORD
+      - key: POLICEHQ_ADMIN_PASSWORD
         sync: false
       - key: POSTGRES_DB
         fromDatabase:
@@ -42,7 +42,7 @@ services:
           property: port
       - key: POSTGRES_SSLMODE
         value: require
-      - key: ARMYHQ_SITE_URL
+      - key: POLICEHQ_SITE_URL
         value: https://policehq.onrender.com
       - key: DJANGO_ALLOWED_HOSTS
         value: policehq.onrender.com
@@ -58,7 +58,7 @@ services:
         value: "1800"
       - key: SESSION_ABSOLUTE_SECONDS
         value: "43200"
-      - key: ARMYHQ_BREAK_GLASS
+      - key: POLICEHQ_BREAK_GLASS
         value: "0"
       - key: PERSONNEL_EXPORT_ENABLED
         value: "0"
@@ -74,7 +74,7 @@ services:
         sync: false
       - key: DEFAULT_FROM_EMAIL
         sync: false
-      - key: ARMYHQ_ALERT_EMAILS
+      - key: POLICEHQ_ALERT_EMAILS
         sync: false
       - key: EMAIL_VERIFICATION_ENABLED
         value: "0"

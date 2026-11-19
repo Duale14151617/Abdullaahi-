@@ -17,9 +17,8 @@ survivor benefits, weapons, ammunition, arrears, reports and approvals.
 
 Every record carries "SMP", "SAMPLE" or created_by "sample" so it can be recognised. Idempotent: a second run adds nothing.
 Each section is separate: if one fails it is reported and the others still run. NEVER use with real data.
-Allowed only on a sample deployment (DEBUG, or ARMYHQ_SAMPLE_MODE=1).
+Allowed only on a sample deployment (DEBUG, or POLICEHQ_SAMPLE_MODE=1).
 """
-import os
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -28,6 +27,7 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from apps.core import env as hqenv
 from apps.organization import police_structure as ps
 from apps.organization.models import OrganizationalUnit as OU
 from apps.personnel.models import Personnel
@@ -36,7 +36,7 @@ TAG = "sample"
 
 
 def _sample_mode_allowed():
-    raw = os.environ.get("ARMYHQ_SAMPLE_MODE") or os.environ.get("ARMYHQ_DEMO_MODE", "0")
+    raw = hqenv.get("SAMPLE_MODE", "0", legacy=("DEMO_MODE",))
     return settings.DEBUG or raw.strip().lower() in ("1", "true", "yes", "on")
 
 
@@ -49,7 +49,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         if not _sample_mode_allowed():
-            raise CommandError("Sample data is disabled. Set ARMYHQ_SAMPLE_MODE=1 only for a synthetic sample deployment.")
+            raise CommandError("Sample data is disabled. Set POLICEHQ_SAMPLE_MODE=1 only for a synthetic sample deployment.")
         call_command("seed_police_sample", stdout=self.stdout)
         self.today = date.today()
         self.stations = []

@@ -1,6 +1,6 @@
 """Security alert emails to the people who own the system.
 
-Recipients: ARMYHQ_ALERT_EMAILS (comma list) plus the verified email of every active super administrator. Unlike the privileged-grant
+Recipients: POLICEHQ_ALERT_EMAILS (comma list) plus the verified email of every active super administrator. Unlike the privileged-grant
 alert, the person who caused the event is NOT excluded: if a thief used the owner's session, the owner is the one who must hear
 about it. Alerts never raise, never block the request, and never carry secrets (no passwords, codes or tokens).
 """

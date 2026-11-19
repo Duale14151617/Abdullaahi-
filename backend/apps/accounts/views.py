@@ -542,7 +542,7 @@ def _deployment_name():
     """The organization name shown in an authenticator app (Army or Police deployment)."""
     from apps.core.views import PROFILES
 
-    return PROFILES.get(getattr(settings, "ARMYHQ_PROFILE", "army"), PROFILES["army"])["name_en"]
+    return PROFILES.get(getattr(settings, "POLICEHQ_PROFILE", "army"), PROFILES["army"])["name_en"]
 
 
 def _reset_email_body(username, code, minutes):

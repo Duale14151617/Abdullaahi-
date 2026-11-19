@@ -11,7 +11,7 @@ from apps.organization.models import OrganizationalUnit as OU
 from apps.personnel.models import CommandAppointment, Personnel
 
 
-@override_settings(ARMYHQ_PROFILE="police", DEBUG=True)
+@override_settings(POLICEHQ_PROFILE="police", DEBUG=True)
 class PoliceSampleTests(TestCase):
     @classmethod
     def setUpTestData(cls):

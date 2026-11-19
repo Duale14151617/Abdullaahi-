@@ -16,10 +16,9 @@ Per station (2 per region):
   * Occurrence Book entries: an entry for every arrest and release, plus a few ordinary ones (complaint, patrol, found property ...).
 
 Everything is clearly fake and removable by hand: people carry the service-number prefix "SMP-", detainees the id reference
-"SAMPLE-ID-..." and created_by "sample". NEVER use with real data. Allowed only on a sample deployment (DEBUG, or ARMYHQ_SAMPLE_MODE=1).
+"SAMPLE-ID-..." and created_by "sample". NEVER use with real data. Allowed only on a sample deployment (DEBUG, or POLICEHQ_SAMPLE_MODE=1).
 Detention rows and appointments are append-only by design, so this command has no delete option.
 """
-import os
 import random
 from datetime import timedelta
 
@@ -28,6 +27,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
+from apps.core import env as hqenv
 from apps.detention import facilities
 from apps.detention.models import CustodyFacility, DetentionCounter, DetentionEvent, DetentionRecord
 from apps.occurrence.models import OccurrenceEntry
@@ -55,7 +55,7 @@ CELLS = ["Cell 1", "Cell 2", "Cell 3", "Women's cell"]
 
 
 def _sample_mode_allowed():
-    raw = os.environ.get("ARMYHQ_SAMPLE_MODE") or os.environ.get("ARMYHQ_DEMO_MODE", "0")
+    raw = hqenv.get("SAMPLE_MODE", "0", legacy=("DEMO_MODE",))
     return settings.DEBUG or raw.strip().lower() in ("1", "true", "yes", "on")
 
 
@@ -231,7 +231,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         if not _sample_mode_allowed():
-            raise CommandError("Sample data is disabled. Set ARMYHQ_SAMPLE_MODE=1 only for a synthetic sample deployment.")
+            raise CommandError("Sample data is disabled. Set POLICEHQ_SAMPLE_MODE=1 only for a synthetic sample deployment.")
         if not 1 <= opts["officers"] <= 20 or not 0 <= opts["detainees"] <= 30:
             raise CommandError("--officers must be 1-20 and --detainees 0-30.")
         if not OU.objects.filter(code="BARI-POL-S1").exists():

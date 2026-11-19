@@ -18,7 +18,7 @@ There is no XAMPP/WAMP/PHP in this project.
 | Ranks | Official 16-rank Army catalogue in English and Somali with draft and approval. |
 | Reports and approvals | Configurable report and request types, draft to approved workflow, separation of duties, revisions, notifications, scoped summaries. |
 | Leave and roster | Leave requests (ask, approve, reject, cancel) and a weekly duty roster per unit; nobody on approved leave can be rostered. |
-| Promotion eligibility | Time in rank against a minimum for each rank (rules set by the super administrator). Advisory only; it never changes a rank. |
+| Promotion eligibility | Time in rank against a minimum for each rank (rules set by the super administrator). Eligible people can be proposed: each becomes a rank-change request with its Police order in the normal approval queue. |
 | Fitness for duty | Encrypted, append-only fitness entries. Commanders see status, review date and duty restriction; medical details are for the medical officer only. |
 | Attendance, vehicles, weapons | Daily attendance by unit, vehicle registry with maintenance and assignment history, weapon register, ammunition ledger and soldier holdings. |
 | Logistics and training | Stock ledger, tracked assets, restricted equipment, reconciliation, course catalogue and training records. |
@@ -53,14 +53,14 @@ cd frontend && npm test && npm run typecheck && npm run lint
 
 ## Deploy on Render
 `render.yaml` is a Blueprint: one Docker web service plus a Postgres database. The container runs, in order: `migrate`,
-`createcachetable`, `seed_reference_data`, `apply_army_structure --apply`, `seed_sample_data` (only when `ARMYHQ_SAMPLE_MODE=1`), `seed_test_personnel --from-env`, then gunicorn.
-Set in the Render dashboard: `FIELD_ENCRYPTION_KEY` (keep it safe: losing it makes encrypted records unreadable), `ARMYHQ_SAMPLE_PASSWORD`,
+`createcachetable`, `seed_reference_data`, `apply_army_structure --apply`, `seed_sample_data` (only when `POLICEHQ_SAMPLE_MODE=1`), `seed_test_personnel --from-env`, then gunicorn.
+Set in the Render dashboard: `FIELD_ENCRYPTION_KEY` (keep it safe: losing it makes encrypted records unreadable), `POLICEHQ_SAMPLE_PASSWORD`,
 and the switches below. See `RENDER_DEPLOY_GUIDE.md` and `docs/DEPLOY_ROLLBACK.md`.
 
 | Variable | Effect |
 |---|---|
-| `ARMYHQ_SAMPLE_MODE=1` (older `ARMYHQ_DEMO_MODE` still works) | Creates the synthetic sample accounts and sample data (usernames in `docs/SETUP.md`, shared password from `ARMYHQ_SAMPLE_PASSWORD`; privileged sample roles enrol an authenticator app at first login). |
-| `ARMYHQ_TEST_PERSONNEL=150` | Keeps 150 synthetic Army people. Unset/0 deletes them all. |
+| `POLICEHQ_SAMPLE_MODE=1` (older `ARMYHQ_SAMPLE_MODE` and `ARMYHQ_DEMO_MODE` still work) | Creates the synthetic sample accounts and sample data (usernames in `docs/SETUP.md`, shared password from `POLICEHQ_SAMPLE_PASSWORD`; privileged sample roles enrol an authenticator app at first login). |
+| `POLICEHQ_TEST_PERSONNEL=150` | Keeps 150 synthetic Army people. Unset/0 deletes them all. |
 | `PERSONNEL_EXPORT_ENABLED`, `REPORT_EXPORT_ENABLED`, `INTEGRATIONS_ENABLED` | Stay 0 until the institution approves them. |
 
 ## Frontend on Netlify (no backend)
@@ -68,7 +68,11 @@ and the switches below. See `RENDER_DEPLOY_GUIDE.md` and `docs/DEPLOY_ROLLBACK.m
 builds against a real backend. Deploy `frontend/dist`, or connect the repo with Base directory `frontend`. See `docs/NETLIFY.md`.
 
 ## Puntland Police build
-This build is branded Puntland Police everywhere users can see it. Internal names such as the `ARMYHQ_*` environment variables, command names and database codes are unchanged so existing deployments keep working.
+This build is branded Puntland Police everywhere users can see it.
+
+**Environment variables are named `POLICEHQ_*`.** The older `ARMYHQ_*` names (and the even older `ARMYHQ_DEMO_*`) still work, so an existing deployment needs no change; when both are set the `POLICEHQ_*` one wins, and a blank value counts as not set. Rename them in the Render dashboard whenever convenient.
+
+Deliberately not renamed, because renaming would change live data or behaviour: database and role names, the `ARMY` branch and unit codes, the `*_army_structure` commands and modules (they describe the Army profile), Render resource names, session cookie names (renaming signs everyone out once), logger names and the `armyhq.E…` system-check ids.
 Useful commands: `create_command_authority`, `report_duplicate_identities`, `seed_test_personnel`, `remove_legacy_structure`, `access_report`.
 
 ## Documentation

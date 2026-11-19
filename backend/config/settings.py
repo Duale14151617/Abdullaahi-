@@ -311,7 +311,7 @@ EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 EMAIL_TIMEOUT = 10
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@armyhq.invalid")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@policehq.invalid")
 INTEGRATION_MAX_DAYS = int(os.environ.get("INTEGRATION_MAX_DAYS", "365"))  # longest allowed credential lifetime
 # Aggregate cells smaller than this are withheld from integration responses (small-number disclosure control).
 INTEGRATION_MIN_CELL = int(os.environ.get("INTEGRATION_MIN_CELL", "5"))

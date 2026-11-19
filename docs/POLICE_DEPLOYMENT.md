@@ -24,11 +24,19 @@ settings. One variable chooses the organization: `ARMYHQ_PROFILE=police`. The Ar
    - NEW values for `DJANGO_SECRET_KEY`, `FIELD_ENCRYPTION_KEY` (and the HMAC key if you use one): never reuse the Army's.
    - `TRUST_PROXY_HEADERS=1`, `NUM_PROXIES=3`, `ARMYHQ_SITE_URL=https://<new-service>.onrender.com`, allowed hosts and CSRF origins.
    - Do NOT set `ARMYHQ_SAMPLE_MODE` (no synthetic data in the Police system).
-4. **Email:** create a second Apps Script (or reuse the same Gmail account with a new script and a new `SECRET`) and set
+4. **Email:** follow `docs/APPS_SCRIPT_MAILER.md`: create a second Apps Script (or reuse the same Gmail account with a new script and a new `SECRET`) and set
    `APPS_SCRIPT_URL`, `APPS_SCRIPT_TOKEN`, `DEFAULT_FROM_EMAIL`, `EMAIL_VERIFICATION_ENABLED=1`, `PASSWORD_FORGOT_ENABLED=1`.
 5. **Backups, uptime, alerts:** copy `.github/workflows/backup.yml` and add the repository secrets for the Police database; add
    a second UptimeRobot monitor for the new `/api/v1/health/live/`.
-6. **Sign in** as `superadmin`, then create the administrators and add districts, stations and people with the normal tools.
+6. **Second super administrator (recommended).** Only a super administrator can reset another super administrator's password or
+   authenticator, so with one account a lost phone locks everyone out of those powers. Sign in as `superadmin`, open Users, create a
+   second account for a different trusted person, then open it, choose Assign role: Super administrator, unit: Headquarters (needs an
+   authenticator code). The new person signs in, changes the password and enrols their own authenticator. HQ administrators cannot
+   grant this role. Keep the two accounts with two different people.
+7. **Account pictures.** HQ administrators and super administrators can set a profile picture for their own account and for other
+   accounts (Account page, or Users, open an account). Only a super administrator can change a super administrator's picture. An
+   account without its own picture shows the photo on its linked personnel record, else the default.
+8. **Sign in** as `superadmin`, then create the administrators and add districts, stations and people with the normal tools.
 
 ## Assumptions to confirm with the Police
 Labels are working labels: Somali names of the titles and units, and whether CID, Traffic and Tax Collection also exist as

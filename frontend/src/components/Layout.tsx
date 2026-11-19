@@ -6,6 +6,7 @@ import { api } from "../api/client";
 import { useFetch } from "../api/useFetch";
 import { useAuth } from "../auth/AuthContext";
 import { useI18n, type Key } from "../i18n";
+import { Avatar } from "./Avatar";
 import { GlobalSearch } from "./GlobalSearch";
 import { StepUpDialog } from "./StepUpDialog";
 import { Icon, type IconName } from "./Icon";
@@ -209,7 +210,7 @@ export function Layout() {
           <InstallButton />
           <ThemeToggle />
           <button onClick={() => void switchLang()} lang={lang === "en" ? "so" : "en"}>{t("lang.other")}</button>
-          <Link className="icon-btn" to="/account" aria-label={t("nav.account")} title={t("nav.account")}><Icon name="users" size={18} /></Link>
+          <Link className="icon-btn avatar-link" to="/account" aria-label={t("nav.account")} title={t("nav.account")}><Avatar size={30} /></Link>
           <button className="icon-btn" onClick={signOut} aria-label={t("common.signOut")} title={t("common.signOut")}><Icon name="logout" size={18} /></button>
         </div>
       </header>

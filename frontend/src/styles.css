@@ -337,6 +337,10 @@ html[data-profile="police"] .lp-bg-left { background-image: url(/login/police-hq
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .lp-welcome { margin: 0; text-align: center; font-size: 1.75rem; font-weight: 700; color: #fff; line-height: 1.15; }
 .lp-welcome-sub { max-width: none; margin: .2rem 0 .7rem; text-align: center; color: #E6EDF8; font-size: 1rem; }
+.avatar { display: inline-block; flex: none; border-radius: 50%; object-fit: cover; background: var(--surface-2, #dfe5ee); box-shadow: 0 0 0 1px rgba(198,161,91,.7); vertical-align: middle; }
+.avatar-link { display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 50%; }
+.account-head { display: flex; align-items: center; gap: 1rem; margin-bottom: .5rem; }
+.account-head h1 { margin: 0; }
 .lp-avatar { display: block; margin: 0 auto .7rem; width: 80px; height: 80px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(227,184,79,.5), 0 4px 14px rgba(0,0,0,.45); }
 .lp-flag { display: block; margin: 0 auto .9rem; width: 96px; max-width: 40%; height: auto; border-radius: 3px; box-shadow: 0 0 0 1px rgba(255,255,255,.28), 0 4px 14px rgba(0,0,0,.45); }
 .lp-field { margin-bottom: .8rem; }

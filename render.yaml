@@ -70,6 +70,13 @@ services:
         value: "0"
       - key: LOG_LEVEL
         value: INFO
+      # Email through Gmail via a Google Apps Script web app (HTTPS, no domain, works on Render's free plan where SMTP is blocked).
+      # See docs/APPS_SCRIPT_MAILER.md. Set both in the Render dashboard; when both are set they win over Brevo and SMTP.
+      - key: APPS_SCRIPT_URL
+        sync: false
+      - key: APPS_SCRIPT_TOKEN
+        sync: false
+      # Optional fallback transport, used only when the two Apps Script values above are empty.
       - key: BREVO_API_KEY
         sync: false
       - key: DEFAULT_FROM_EMAIL

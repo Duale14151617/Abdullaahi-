@@ -120,6 +120,7 @@ urlpatterns = [
     path("auth/login/", acc.LoginView.as_view()),
     path("auth/logout/", acc.LogoutView.as_view()),
     path("auth/me/", acc.MeView.as_view()),
+    path("auth/me/photo/", acc.MyPhotoView.as_view()),
     path("auth/password/change/", acc.PasswordChangeView.as_view()),
     path("auth/password/reset/", acc.PasswordResetView.as_view()),
     path("auth/password/forgot/", acc.PasswordForgotView.as_view()),

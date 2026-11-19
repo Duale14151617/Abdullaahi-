@@ -136,6 +136,13 @@ export function photoUrl(personId: string, v: number): string {
   return `/api/v1/personnel/${personId}/photo/?v=${v}`;
 }
 
+/** URL of the signed-in user's own avatar (a small thumbnail of the photo on their personnel record), or "" when there is none. */
+export function myPhotoUrl(personnelId: string | null | undefined, v: number | null | undefined): string {
+  if (v == null) return "";
+  if (import.meta.env.VITE_PREVIEW === "1") return personnelId ? previewPhotos.get(personnelId) ?? "" : "";
+  return `/api/v1/auth/me/photo/?v=${v}`;
+}
+
 export async function upload<T>(path: string, field: string, file: File, extra: Record<string, string> = {}): Promise<T> {
   if (import.meta.env.VITE_PREVIEW === "1") {
     const m = path.match(/^\/personnel\/([^/]+)\/photo\/upload\/$/);

@@ -57,6 +57,21 @@ class User(AbstractBaseUser):
         return self.username
 
 
+class UserAvatar(models.Model):
+    """Profile picture an administrator set for a login account (kept apart from User so the hot sign-in row stays small).
+
+    Encrypted at rest like the personnel photo. Takes priority over the photo on the linked personnel record; accounts with no
+    personnel record (administrators) can only get a picture this way."""
+
+    user = models.OneToOneField(User, primary_key=True, on_delete=models.CASCADE, related_name="avatar")
+    image_enc = models.BinaryField()
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by_username = models.CharField(max_length=150, blank=True)
+
+    class Meta:
+        db_table = "user_avatars"
+
+
 class Permission(models.Model):
     code = models.CharField(max_length=64, unique=True)
     description = models.CharField(max_length=200, blank=True)

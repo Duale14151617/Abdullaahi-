@@ -14,6 +14,8 @@ export interface Me {
   features: { personnel_export: boolean; report_export: boolean; integrations: boolean; email_verification?: boolean };
   /** The personnel record this login belongs to, if one is linked. */
   personnel_id?: string | null;
+  /** When the official photo was last set (seconds), used as a cache-buster; null when there is no photo. */
+  photo_v?: number | null;
 }
 export interface Page<T> { count: number; next: string | null; previous: string | null; results: T[] }
 export interface Unit extends Named {

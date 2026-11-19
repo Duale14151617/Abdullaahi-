@@ -1,12 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { Avatar } from "../components/Avatar";
+import { AvatarEditor } from "../components/AvatarEditor";
 import { Chip, ErrorNotice, Field, Notice } from "../components/ui";
 import { useI18n } from "../i18n";
 
 /** The signed-in user's own account. For now: confirm the email address with a code, which is what unlocks "Forgot your password?". */
 export function Account() {
-  const { me, reload } = useAuth();
+  const { me, reload, can } = useAuth();
   const { t } = useI18n();
   const current = me?.email ?? "";
   const verified = me?.email_verified === true;
@@ -41,8 +43,19 @@ export function Account() {
 
   return (
     <>
-      <h1>{t("account.title")}</h1>
-      <p className="muted">{me?.full_name} · {me?.username}</p>
+      <div className="account-head">
+        <Avatar size={72} />
+        <div>
+          <h1>{t("account.title")}</h1>
+          <p className="muted" style={{ margin: 0 }}>{me?.full_name} · {me?.username}</p>
+        </div>
+      </div>
+      {can("users.manage") && me ? (
+        <section className="card">
+          <h2>{t("avatar.title")}</h2>
+          <AvatarEditor userId={me.id} onChanged={() => void reload()} />
+        </section>
+      ) : me?.personnel_id && <p className="muted">{t("account.photoNote")}</p>}
       <section className="card">
         <h2>{t("account.email")}</h2>
         {done && <Notice>{t("account.verifiedDone")}</Notice>}

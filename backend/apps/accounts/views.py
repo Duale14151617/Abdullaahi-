@@ -13,6 +13,7 @@ from django.core.cache import cache
 from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Count, F, Q
+from django.http import HttpResponse
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -28,12 +29,14 @@ from apps.audit.models import AuditEvent
 from apps.audit.services import client_ip, record
 from apps.core.errors import field_error
 from apps.core import crypto
+from apps.core.negotiation import IgnoreNegotiation
 from apps.core.mailer import send_background
 
 from . import access_review as review_mod, alerts, bulk, scope
-from .models import EmailVerificationCode, MfaRecoveryCode, PasswordResetToken, Role, RoleAssignment, User
+from .models import EmailVerificationCode, MfaRecoveryCode, PasswordResetToken, Role, RoleAssignment, User, UserAvatar
 from .permissions import ScopedPermission
 from .security import consume_totp, restrictions
+from . import avatar as avatar_svc
 from .stepup import mark_fresh, require_fresh_mfa
 from .serializers import (AssignmentCreateSerializer, AssignmentSerializer, EmailVerifyConfirmSerializer, EmailVerifyRequestSerializer,
                           LoginSerializer, PasswordForgotSerializer,
@@ -48,7 +51,14 @@ LOCK_MINUTES = 15
 
 
 def me_payload(user):
-    from apps.personnel.models import Personnel  # local import: personnel depends on accounts
+    from apps.personnel.models import Personnel, PersonnelProfile  # local import: personnel depends on accounts
+    person_id = next(iter(Personnel.objects.filter(account_id=user.pk).values_list("pk", flat=True)[:1]), None)
+    # When the picture was last set (seconds): lets the browser cache the avatar and refetch only after a change. Null = no picture.
+    # An administrator-set account picture wins over the photo on the linked personnel record.
+    photo_at = UserAvatar.objects.filter(pk=user.pk).values_list("updated_at", flat=True).first()
+    if photo_at is None and person_id:
+        photo_at = PersonnelProfile.objects.filter(pk=person_id, photo_updated_at__isnull=False).values_list(
+            "photo_updated_at", flat=True).first()
     return {
         "id": str(user.pk),
         "username": user.username,
@@ -66,7 +76,8 @@ def me_payload(user):
                      "email_verification": settings.EMAIL_VERIFICATION_ENABLED},
         "assignments": AssignmentSerializer(scope.assignments(user), many=True).data,
         # The personnel record this login belongs to (null when none is linked); drives the "My record" shortcut.
-        "personnel_id": next((str(pk) for pk in Personnel.objects.filter(account_id=user.pk).values_list("pk", flat=True)[:1]), None),
+        "personnel_id": str(person_id) if person_id else None,
+        "photo_v": int(photo_at.timestamp()) if photo_at else None,
     }
 
 
@@ -184,6 +195,29 @@ class MeView(APIView):
         User.objects.filter(pk=request.user.pk).update(preferred_language=lang)
         request.user.preferred_language = lang
         return Response(me_payload(request.user))
+
+
+class MyPhotoView(APIView):
+    """The signed-in user's own avatar: a small thumbnail of the picture an administrator set for the account, else of the
+    official photo on their linked personnel record.
+
+    Needs no personnel permission (it is only ever the caller's own photo). 404 when no record is linked or it has no photo."""
+    content_negotiation_class = IgnoreNegotiation
+
+    def get(self, request):
+        from apps.personnel import profile as profile_svc
+        from apps.personnel.models import Personnel
+        jpeg = avatar_svc.read_avatar(request.user)  # a picture an administrator set for this account wins
+        if jpeg is None:
+            person = Personnel.objects.filter(account_id=request.user.pk).first()
+            jpeg = profile_svc.read_photo(person) if person else None
+        if jpeg is None:
+            return HttpResponse(status=404)
+        resp = HttpResponse(profile_svc.make_thumbnail(jpeg), content_type="image/jpeg")
+        resp["Cache-Control"] = "private, max-age=3600"  # the URL carries ?v=<photo version>, so a new photo is a new URL
+        resp["Content-Disposition"] = 'inline; filename="avatar.jpg"'
+        resp["X-Content-Type-Options"] = "nosniff"
+        return resp
 
 
 class PasswordChangeView(APIView):
@@ -670,6 +704,7 @@ class UserViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.Creat
         "reset_password": ("users.manage", "global"), "issue_reset_code": ("users.manage", "global"),
         "assignments": ("users.view", "global"), "suggest_username": ("users.manage", "global"), "bulk_create": ("users.manage", "global"), "access_review": ("users.view", "global"),
         "revoke_assignment": ("roles.assign", "global"),
+        "avatar": ("users.manage", "global"), "avatar_upload": ("users.manage", "global"), "avatar_remove": ("users.manage", "global"),
     }
 
     def get_object(self):
@@ -871,6 +906,40 @@ class UserViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.Creat
         alerts.notify("recovery code issued", f"{request.user.username} issued a one-time recovery code for {user.username}.",
                       request=request, actor=request.user)
         return Response({"code": code, "expires_at": expires, "valid_minutes": RESET_CODE_MINUTES})
+
+    # --- account profile picture: HQ administrators and super administrators, for their own account and for others ---------
+    # get_object() already refuses a non-super-administrator who tries to change a super administrator's account (own account excepted).
+    @action(detail=True, methods=["get"], content_negotiation_class=IgnoreNegotiation)
+    def avatar(self, request, pk=None):
+        from apps.personnel import profile as profile_svc
+        target = self.get_object()
+        jpeg = avatar_svc.read_avatar(target)
+        if jpeg is None:
+            return HttpResponse(status=404)
+        resp = HttpResponse(profile_svc.make_thumbnail(jpeg), content_type="image/jpeg")
+        resp["Cache-Control"] = "private, no-cache"
+        resp["X-Content-Type-Options"] = "nosniff"
+        return resp
+
+    @action(detail=True, methods=["post"], url_path="avatar/upload", parser_classes=[MultiPartParser])
+    def avatar_upload(self, request, pk=None):
+        from apps.personnel import profile as profile_svc
+        target = self.get_object()
+        upload = request.FILES.get("photo")
+        if upload is None:
+            raise field_error("photo", "photo_required", "Choose a photo.")
+        avatar_svc.save_avatar(target, profile_svc.process_photo(upload), request.user.username)
+        record("user.avatar_set", request=request, entity_type="user", entity_id=target.pk,
+               metadata={"own_account": target.pk == request.user.pk})
+        return Response({"has_avatar": True})
+
+    @action(detail=True, methods=["post"], url_path="avatar/remove")
+    def avatar_remove(self, request, pk=None):
+        target = self.get_object()
+        if avatar_svc.remove_avatar(target):
+            record("user.avatar_remove", request=request, entity_type="user", entity_id=target.pk,
+                   metadata={"own_account": target.pk == request.user.pk})
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get", "post"])
     def assignments(self, request, pk=None):

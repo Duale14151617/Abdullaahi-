@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### New: ID cards, official letters and scheduled reports
+- **ID cards and official letters.** Printable officer ID cards (photo, rank, unit, validity, QR code) and letterhead letters with a QR code and a text fingerprint. Scanning the code opens a public check page (`/verify/<code>`) that says genuine, revoked, expired or not found, and shows only name, rank, unit and a partly hidden service number. New permissions `credentials.view` / `credentials.issue`. Needs the `segno` package (in requirements).
+- **Scheduled reports by email.** Weekly/daily/monthly strength report emailed to commanders (counts only, verified-email recipients who can view the area). New permission `schedules.manage`, command `send_scheduled_reports`, and a token-protected trigger `POST /api/v1/schedules/run-due/` for an outside scheduler. See `docs/ID_CARDS_LETTERS_AND_SCHEDULES.md`.
+
 ### Rename: POLICEHQ_* environment variables
 - Settings are now read through `apps/core/env.py`: `POLICEHQ_<NAME>` first, then the older `ARMYHQ_<NAME>` (and the oldest `ARMYHQ_DEMO_*`), so **existing deployments need no change**. When both are set the `POLICEHQ_*` one wins; a blank value counts as not set, so a blank new variable never hides the old one. The Django setting `ARMYHQ_PROFILE` is now `POLICEHQ_PROFILE`; the Dockerfile start command, `render.yaml`, `.env.example`, `docker-compose.local.yml` and the guides use the new names. The React component `ArmyStrength` is now `PoliceStrength`.
 - Deliberately not renamed (renaming would change live data or behaviour): database and role names, `ARMY` branch and unit codes, the `*_army_structure` commands and modules (they describe the Army profile), Render resource names, session cookie names (renaming signs everyone out once), logger names and the `armyhq.E…` check ids.

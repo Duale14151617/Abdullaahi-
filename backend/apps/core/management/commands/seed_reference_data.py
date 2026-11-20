@@ -82,6 +82,9 @@ PERMISSIONS = {
     "personnel.manage": "Create/edit personnel, transfers, rank and status changes in scope",
     "personnel.import": "Import personnel from CSV in scope",
     "personnel.export": "Export personnel to CSV in scope (also needs PERSONNEL_EXPORT_ENABLED)",
+    "credentials.view": "See the list of officer ID cards and official letters issued for units in scope",
+    "credentials.issue": "Issue officer ID cards and official letters (with a QR code anyone can scan to verify them) and revoke them, for units in scope",
+    "schedules.manage": "Create, change, pause and send scheduled email reports (counts only) for units in scope; recipients need a verified email and access to the same report",
     "reports.view": "View requests/reports in scope",
     "reports.submit": "Prepare and submit requests/reports in scope",
     "reports.review": "Review, approve, reject or return reports in scope",
@@ -321,14 +324,14 @@ REGIONS = ["Bari", "Nugaal", "Mudug"]
 
 # Extra grants per role (applied on top of the tuples above).
 EXTRA = {
-    "hq_admin": ["logistics.configure", "training.configure", "vehicles.configure"],
+    "hq_admin": ["logistics.configure", "training.configure", "vehicles.configure"],  # credentials.* and schedules.manage arrive through its all-permissions list
     "hq_reporting": ["logistics.report", "training.report", "analytics.view"],
-    "regional_chief": ["vehicles.view", "weapons.view", "logistics.view", "logistics.report", "training.view", "training.report", "analytics.view",
+    "regional_chief": ["credentials.view", "credentials.issue", "schedules.manage", "vehicles.view", "weapons.view", "logistics.view", "logistics.report", "training.view", "training.report", "analytics.view",
                        "personnel.record_death"],
     # Disciplinary history and service documents are sensitive: only these privileged (MFA) roles hold them by default
     # (branch_admin), plus super_admin. Adjust here if the institution decides otherwise; the next seed run
     # re-syncs roles. Combined summaries go to command_authority only (and super_admin).
-    "branch_admin": ["vehicles.view", "logistics.view", "logistics.report", "training.view", "training.report", "analytics.view",
+    "branch_admin": ["credentials.view", "credentials.issue", "vehicles.view", "logistics.view", "logistics.report", "training.view", "training.report", "analytics.view",
                      "disciplinary.view", "disciplinary.manage", "documents.view", "documents.manage",
                      "personnel.record_death", "personnel.confirm_death", "personnel.appointments_manage"],
     "command_authority": ["reports.combined"],

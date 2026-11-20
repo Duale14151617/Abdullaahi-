@@ -6,6 +6,7 @@ A notification only says that something happened; what the recipient may still s
 import logging
 
 from apps.workflows.models import Notification
+from apps.workflows.notify_email import email_new
 from apps.workflows.services import reviewers_for
 
 log = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ def _send(kind, leave, users):
                 seen.add(u.pk)
                 rows.append(Notification(recipient=u, kind=kind, leave_request=leave))
         Notification.objects.bulk_create(rows)
+        email_new([r.recipient for r in rows])
     except Exception:  # a notification must never undo the leave action itself
         log.exception("leave notification failed")
 

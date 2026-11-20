@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 
 import hashlib
 import hmac
@@ -66,6 +66,7 @@ def me_payload(user):
         "email": user.email,
         "email_verified": user.email_verified_at is not None,
         "preferred_language": user.preferred_language,
+        "notify_email": user.notify_email,
         "mfa_enabled": user.mfa_enabled,
         "requires_mfa": scope.requires_mfa(user),
         "restrictions": restrictions(user),
@@ -73,12 +74,30 @@ def me_payload(user):
         "features": {"personnel_export": settings.PERSONNEL_EXPORT_ENABLED,
                      "report_export": settings.REPORT_EXPORT_ENABLED,
                      "integrations": settings.INTEGRATIONS_ENABLED,
-                     "email_verification": settings.EMAIL_VERIFICATION_ENABLED},
+                     "email_verification": settings.EMAIL_VERIFICATION_ENABLED,
+                     "notification_email": settings.NOTIFICATION_EMAILS_ENABLED},
         "assignments": AssignmentSerializer(scope.assignments(user), many=True).data,
         # The personnel record this login belongs to (null when none is linked); drives the "My record" shortcut.
         "personnel_id": str(person_id) if person_id else None,
         "photo_v": int(photo_at.timestamp()) if photo_at else None,
     }
+
+
+def sign_in_info(request, user):
+    """The sign-in before this session's, and how many failed attempts hit the account in between. Shown to the user only, on the
+    dashboard, so they can spot misuse. None on a first-ever sign-in. Read from the audit log; nothing new is stored.
+
+    This session's own sign-in is told apart by the login time kept in the session (a few seconds of slack for the audit write)."""
+    started = request.session.get("login_at") if hasattr(request, "session") else None
+    now = datetime.fromtimestamp(started, tz=dt_timezone.utc) if started else (user.last_login or timezone.now())
+    prev = (AuditEvent.objects.filter(actor_id=user.pk, action="auth.login", outcome="success",
+                                      occurred_at__lt=now - timedelta(seconds=5))
+            .order_by("-occurred_at").values("occurred_at", "ip_address").first())
+    if prev is None:
+        return None
+    failed = AuditEvent.objects.filter(actor_id=user.pk, action="auth.login", outcome__in=["failure", "denied"],
+                                       occurred_at__gt=prev["occurred_at"], occurred_at__lt=now).count()
+    return {"previous_at": prev["occurred_at"], "previous_ip": prev["ip_address"], "failed_since": failed}
 
 
 def enforce_csrf(request):
@@ -152,7 +171,7 @@ class LoginView(APIView):
             alerts.notify("privileged sign-in from a new address",
                           f"{authed.username} signed in from {ip or 'an unknown address'}, which this account has not used before.",
                           request=request, actor=authed)
-        return Response(me_payload(authed))
+        return Response({**me_payload(authed), "sign_in": sign_in_info(request, authed)})
 
     @staticmethod
     def _register_failure(request, user, reason):
@@ -186,14 +205,27 @@ class MeView(APIView):
     allow_restricted = True
 
     def get(self, request):
-        return Response(me_payload(request.user))
+        return Response({**me_payload(request.user), "sign_in": sign_in_info(request, request.user)})
 
     def patch(self, request):
-        lang = request.data.get("preferred_language")
-        if lang not in ("en", "so"):
-            raise field_error("preferred_language", "invalid_choice", "Choose en or so.")
-        User.objects.filter(pk=request.user.pk).update(preferred_language=lang)
-        request.user.preferred_language = lang
+        """{preferred_language} and/or {notify_email}. Turning email alerts on needs the feature enabled and a verified address."""
+        if "notify_email" in request.data:
+            want = request.data["notify_email"]
+            if not isinstance(want, bool):
+                raise field_error("notify_email", "invalid_choice", "Choose true or false.")
+            if want and not settings.NOTIFICATION_EMAILS_ENABLED:
+                raise field_error("notify_email", "not_available", "Email alerts are not switched on for this system.")
+            if want and not (request.user.email and request.user.email_verified_at):
+                raise field_error("notify_email", "email_not_verified", "Confirm your email address first (Account page).")
+            User.objects.filter(pk=request.user.pk).update(notify_email=want)
+            request.user.notify_email = want
+            record("user.notify_email", request=request, entity_type="user", entity_id=request.user.pk, metadata={"enabled": want})
+        if "preferred_language" in request.data or "notify_email" not in request.data:
+            lang = request.data.get("preferred_language")
+            if lang not in ("en", "so"):
+                raise field_error("preferred_language", "invalid_choice", "Choose en or so.")
+            User.objects.filter(pk=request.user.pk).update(preferred_language=lang)
+            request.user.preferred_language = lang
         return Response(me_payload(request.user))
 
 

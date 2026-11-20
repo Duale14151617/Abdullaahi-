@@ -88,6 +88,8 @@ INSTALLED_APPS = [
     "apps.analytics",
     "apps.integrations",
     "apps.inventories",
+    "apps.issuance",
+    "apps.schedules",
 ]
 
 MIDDLEWARE = [
@@ -216,6 +218,7 @@ REST_FRAMEWORK = {
         "recover": "5/min",
         "forgot": "5/min",   # emailing a password-reset code
         "verify": "10/min",  # emailing / confirming an email-verification code
+        "docverify": os.environ.get("THROTTLE_DOCVERIFY", "30/min"),  # public QR check of an ID card or letter, and the cron trigger, per address
         "bulk": os.environ.get("THROTTLE_BULK", "30/hour"),  # imports and exports
         "tracker": os.environ.get("THROTTLE_TRACKER", "600/min"),  # GPS tracker feed, per address (a Traccar server sends for many vehicles)
         "integration": os.environ.get("THROTTLE_INTEGRATION", "60/min"),  # per integration client (2.0)
@@ -283,6 +286,15 @@ MFA_RECOVERY_CODE_MINUTES = int(os.environ.get("MFA_RECOVERY_CODE_MINUTES", "15"
 EMAIL_VERIFICATION_ENABLED = env_bool("EMAIL_VERIFICATION_ENABLED", False)
 EMAIL_VERIFY_CODE_MINUTES = int(os.environ.get("EMAIL_VERIFY_CODE_MINUTES", "15"))
 PASSWORD_FORGOT_ENABLED = env_bool("PASSWORD_FORGOT_ENABLED", False)
+# Email alerts for new in-app notifications (off by default; needs working outgoing email). Each user must also opt in on the Account page
+# and have a verified address. The mail never names anyone or anything: it only says there is something to read. At most one mail per
+# user per NOTIFICATION_EMAIL_MIN_MINUTES, which also protects a Gmail sender's daily limit.
+# Facts for the status footer, shown to signed-in users only (never on the public endpoints).
+APP_VERSION = os.environ.get("APP_VERSION", "2.1.2")
+APP_BUILD = os.environ.get("RENDER_GIT_COMMIT", "")[:7]  # Render sets this to the deployed commit
+SUPPORT_CONTACT = (os.environ.get("SUPPORT_CONTACT") or hqenv.get("SUPPORT_CONTACT", "")).strip()[:200]  # e.g. "support@example.org" or "+252 ..."
+NOTIFICATION_EMAILS_ENABLED = env_bool("NOTIFICATION_EMAILS_ENABLED", False)
+NOTIFICATION_EMAIL_MIN_MINUTES = int(os.environ.get("NOTIFICATION_EMAIL_MIN_MINUTES", "30"))
 # A temporary password (set by an administrator, must be changed at first sign-in) stops working after this many days.
 TEMP_PASSWORD_DAYS = int(os.environ.get("TEMP_PASSWORD_DAYS", "7"))
 PASSWORD_FORGOT_CODE_MINUTES = int(os.environ.get("PASSWORD_FORGOT_CODE_MINUTES", "30"))
@@ -339,3 +351,15 @@ LOGGING = {
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "std", "filters": ["cid", "redact"]}},
     "root": {"handlers": ["console"], "level": os.environ.get("LOG_LEVEL", "INFO")},
 }
+
+
+# --- ID cards, official letters and scheduled reports ---------------------------------------------------------------------------
+# An ID card is valid for this many years from the day it is issued. The reference printed on documents starts with this prefix.
+ID_CARD_VALID_YEARS = int(os.environ.get("ID_CARD_VALID_YEARS", "2"))
+ISSUANCE_REF_PREFIX = os.environ.get("ISSUANCE_REF_PREFIX", "PHQ")
+# Scheduled email reports (counts only, to users with a verified email who may open the same report). Set 0 to switch the whole feature off.
+SCHEDULED_REPORTS_ENABLED = env_bool("SCHEDULED_REPORTS_ENABLED", True)
+# Times in a schedule ("every Monday at 07:00") are read in this zone.
+SCHEDULES_TIMEZONE = os.environ.get("SCHEDULES_TIMEZONE", "Africa/Mogadishu")
+# Optional: lets an outside scheduler call POST /api/v1/schedules/run-due/ with header X-Cron-Token (24+ characters). Unset = that URL answers 404.
+SCHEDULES_CRON_TOKEN = os.environ.get("SCHEDULES_CRON_TOKEN", "")

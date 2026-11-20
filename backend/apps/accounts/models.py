@@ -33,6 +33,8 @@ class User(AbstractBaseUser):
     must_change_password = models.BooleanField(default=False)
     # When a temporary password (must_change_password) stops working. Null = no deadline. Cleared once the user sets their own.
     temp_password_expires_at = models.DateTimeField(null=True, blank=True)
+    # The user asked for an email when new notifications arrive (also needs a verified address and NOTIFICATION_EMAILS_ENABLED).
+    notify_email = models.BooleanField(default=False)
     mfa_enabled = models.BooleanField(default=False)
     mfa_secret_enc = models.TextField(blank=True)  # Fernet-encrypted TOTP secret
     # Bumped on disable / role change / password change; sessions carry the value

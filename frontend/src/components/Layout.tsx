@@ -7,6 +7,8 @@ import { useFetch } from "../api/useFetch";
 import { useAuth } from "../auth/AuthContext";
 import { useI18n, type Key } from "../i18n";
 import { Avatar } from "./Avatar";
+import { NotificationBell } from "./NotificationBell";
+import { SystemFooter } from "./SystemFooter";
 import { GlobalSearch } from "./GlobalSearch";
 import { StepUpDialog } from "./StepUpDialog";
 import { Icon, type IconName } from "./Icon";
@@ -31,9 +33,9 @@ const TAB_PATHS = HUBS.flatMap((h) => h.tabs);
 const NAV_SECTIONS: { key: string; title?: Key; to: string[] }[] = [
   { key: "top", to: ["/", "/notifications"] },
   { key: "units", title: "nav.group.units", to: ["/organization", "/structure", "/structure-changes", "/units"] },
-  { key: "people", title: "nav.group.people", to: ["/my-record", "/personnel", "/personnel-report", "/search", "/change-requests", "/attendance", "/leave", "/promotion", "/fitness", "/training", "/ranks"] },
+  { key: "people", title: "nav.group.people", to: ["/my-record", "/personnel", "/personnel-report", "/credentials", "/search", "/change-requests", "/attendance", "/leave", "/promotion", "/fitness", "/training", "/ranks"] },
   { key: "pay", title: "nav.group.pay", to: ["/payroll", "/survivors"] },
-  { key: "reporting", title: "nav.group.reporting", to: ["/reports", "/summary", "/analytics", "/tasks"] },
+  { key: "reporting", title: "nav.group.reporting", to: ["/reports", "/summary", "/schedules", "/analytics", "/tasks"] },
   { key: "logistics", title: "nav.group.logistics", to: ["/logistics", "/ammunition", "/ppe", "/weapons", "/vehicles", "/food"] },
   { key: "custody", title: "nav.group.custody", to: ["/detention", "/occurrence-book", "/shift-handover", "/custody-facilities", "/custody-oversight", "/custody-incidents", "/offline-desk"] },
   { key: "revenue", title: "nav.group.revenue", to: ["/tax", "/tax-oversight"] },
@@ -57,9 +59,11 @@ export function Layout() {
     { to: "/my-record", icon: "users", label: "nav.myRecord", show: Boolean(me?.personnel_id) && (can("personnel.view") || can("personnel.view_team")) },
     { to: "/personnel", icon: "users", label: "nav.personnel", show: can("personnel.view") || can("personnel.view_team") },
     { to: "/personnel-report", icon: "list", label: "nav.personnelReport", show: can("personnel.view") },
+    { to: "/credentials", icon: "file", label: "nav.credentials", show: can("credentials.view") || can("credentials.issue") },
     { to: "/search", icon: "search", label: "nav.search", show: can("search.cross_service") },
     { to: "/reports", icon: "file", label: "nav.reports", show: can("reports.view") },
     { to: "/summary", icon: "list", label: "nav.summary", show: can("reports.summary") },
+    { to: "/schedules", icon: "clock", label: "nav.schedules", show: can("schedules.manage") },
     { to: "/logistics", icon: "box", label: "nav.logistics", show: ["logistics.view", "logistics.restricted", "logistics.configure", "logistics.approve", "logistics.restricted_approve", "logistics.report"].some(can) },
     { to: "/ammunition", go: can("logistics.restricted") ? "/ammunition" : "/accountability", icon: "box", label: "nav.hub.ammunition", show: can("logistics.restricted") || can("weapons.view"), match: ["/ammunition", "/accountability", "/ammo-control"] },
     { to: "/ppe", icon: "lock", label: "nav.ppe", show: can("logistics.view") },
@@ -210,6 +214,7 @@ export function Layout() {
           <InstallButton />
           <ThemeToggle />
           <button onClick={() => void switchLang()} lang={lang === "en" ? "so" : "en"}>{t("lang.other")}</button>
+          <NotificationBell count={count} onChanged={unread.reload} />
           <Link className="icon-btn avatar-link" to="/account" aria-label={t("nav.account")} title={t("nav.account")}><Avatar size={30} /></Link>
           <button className="icon-btn" onClick={signOut} aria-label={t("common.signOut")} title={t("common.signOut")}><Icon name="logout" size={18} /></button>
         </div>
@@ -296,7 +301,7 @@ export function Layout() {
         )}
         <Outlet />
       </main>
-      <footer className="muted small" style={{ textAlign: "center", padding: "1rem" }}>{t("app.name")} · {t("app.footer")}</footer>
+      <SystemFooter />
       <StepUpDialog />
     </div>
   );

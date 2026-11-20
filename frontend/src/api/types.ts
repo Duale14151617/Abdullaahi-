@@ -9,9 +9,11 @@ export interface Assignment {
 }
 export interface Me {
   id: string; username: string; full_name: string; preferred_language: Lang; mfa_enabled: boolean;
-  email?: string; email_verified?: boolean;
+  email?: string; email_verified?: boolean; notify_email?: boolean;
+  /** The sign-in before this session and failed attempts since; null on a first-ever sign-in. */
+  sign_in?: { previous_at: string; previous_ip: string | null; failed_since: number } | null;
   requires_mfa: boolean; restrictions: string[]; permissions: string[]; assignments: Assignment[];
-  features: { personnel_export: boolean; report_export: boolean; integrations: boolean; email_verification?: boolean };
+  features: { personnel_export: boolean; report_export: boolean; integrations: boolean; email_verification?: boolean; notification_email?: boolean };
   /** The personnel record this login belongs to, if one is linked. */
   personnel_id?: string | null;
   /** When the official photo was last set (seconds), used as a cache-buster; null when there is no photo. */
@@ -74,7 +76,8 @@ export interface Dashboard {
   ranks?: { draft: number; approved: number };
   accounts?: { active: number; disabled: number; privileged_without_mfa: number };
   audit?: { events_24h: number; failed_logins_24h: number; denied_24h: number; daily?: DayActivity[] };
-  personnel?: { total: number; active: number; by_region?: RegionHeadcount[] };
+  personnel?: { total: number; active: number; by_region?: RegionHeadcount[]; new_30d?: number; new_prev_30d?: number };
+  leave?: { pending_approval: number; requests_7d: number; requests_prev_7d: number };
   reports?: { my_open: number; awaiting_review?: number };
   logistics?: { low_stock: number; assets_attention: number };
   training?: { in_progress: number; enrolled: number };

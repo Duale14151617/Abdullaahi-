@@ -1,12 +1,12 @@
 import { EquipmentPanel, FleetPanel, PpePanel } from "../components/EquipmentPanels";
 import { brand } from "../lib/brand";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { AuditEvent, Dashboard as Data, DayActivity, NotificationItem, Page, Unit } from "../api/types";
 import { useFetch } from "../api/useFetch";
 import { useAuth } from "../auth/AuthContext";
 import { Icon, type IconName } from "../components/Icon";
-import { Chip, ErrorNotice } from "../components/ui";
+import { Chip, ErrorNotice, formatDate, Notice } from "../components/ui";
 import { statusTone } from "../components/status";
 import { formatLongDate, greetingKey, timeAgo } from "../lib/time";
 import { useI18n } from "../i18n";
@@ -28,14 +28,27 @@ function Ring({ share }: { share: number }) {
   );
 }
 
-function Kpi({ icon, label, value, to, suffix = "", tone = "", ring, sub }:
-  { icon: IconName; label: string; value: number; to: string; suffix?: string; tone?: string; ring?: number; sub?: string }) {
+/** Arrow and change against the previous period. `upIs` says whether an increase is good, bad or just information. */
+function Trend({ now, before, window, upIs = "neutral" }: { now: number; before: number; window: string; upIs?: "good" | "bad" | "neutral" }) {
+  const { t } = useI18n();
+  const diff = now - before;
+  const dir = diff > 0 ? "up" : diff < 0 ? "down" : "flat";
+  const good = dir === "flat" || upIs === "neutral" ? "" : (dir === "up") === (upIs === "good") ? " good" : " worse";
+  const arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : "▬";
+  const text = dir === "flat" ? t("dash.trendSame") : `${diff > 0 ? "+" : "−"}${Math.abs(diff).toLocaleString()}`;
+  return <span className={`trend ${dir}${good}`} title={t("dash.trendTitle", { now: now.toLocaleString(), before: before.toLocaleString(), window })}>
+    <span aria-hidden="true">{arrow}</span> {text} <span className="trend-win">{window}</span></span>;
+}
+
+function Kpi({ icon, label, value, to, suffix = "", tone = "", ring, sub, trend }:
+  { icon: IconName; label: string; value: number; to: string; suffix?: string; tone?: string; ring?: number; sub?: string; trend?: ReactNode }) {
   return (
     <Link to={to} className={`kpi ${tone}${value === 0 && !tone ? " zero" : ""}`}>
       {ring !== undefined ? <Ring share={ring} /> : <span className={`ico ${tone}`}><Icon name={icon} /></span>}
       <span className="num">{value.toLocaleString()}{suffix}</span>
       <span className="lbl">{label}</span>
       {sub ? <span className="sub">{sub}</span> : null}
+      {trend}
     </Link>
   );
 }
@@ -155,6 +168,30 @@ function Panel({ icon, title, rows, meter }: { icon: IconName; title: string; ro
   );
 }
 
+/** "Last sign-in ..." line, with a warning when someone failed to sign in to this account in between. Dismissed for the rest of the
+ *  browser session (best effort: storage can be unavailable, then it simply shows again). */
+function SignInNote() {
+  const { t, lang } = useI18n();
+  const { me } = useAuth();
+  const info = me?.sign_in;
+  const key = info ? `signin-note:${info.previous_at}` : "";
+  const [hidden, setHidden] = useState(() => { try { return !!key && sessionStorage.getItem(key) === "1"; } catch { return false; } });
+  if (!info || hidden) return null;
+  const when = formatDate(info.previous_at, lang);
+  const dismiss = () => { setHidden(true); try { sessionStorage.setItem(key, "1"); } catch { /* ignore */ } };
+  return (
+    <Notice kind={info.failed_since > 0 ? "warn" : "info"}>
+      <div className="row row-between">
+        <span>
+          {info.previous_ip ? t("dash.lastSignIn", { when, ip: info.previous_ip }) : t("dash.lastSignInNoIp", { when })}
+          {info.failed_since > 0 && <><br /><b>{t("dash.failedSince", { n: info.failed_since })}</b></>}
+        </span>
+        <button type="button" className="secondary" onClick={dismiss}>{t("sys.dismiss")}</button>
+      </div>
+    </Notice>
+  );
+}
+
 /** Placeholder cards shown while the dashboard loads, so the page does not jump when data arrives. */
 function Skeleton({ label }: { label: string }) {
   return (
@@ -197,6 +234,7 @@ export function Dashboard() {
     const approvals = [
       { to: "/reports", label: t("dash.awaiting"), n: n.reports?.awaiting_review ?? 0, bad: false },
       { to: "/ranks", label: t("dash.draftRanks"), n: can("ranks.approve") ? n.ranks?.draft ?? 0 : 0, bad: false },
+      { to: "/leave", label: t("dash.leavePending"), n: n.leave?.pending_approval ?? 0, bad: false },
     ].filter((x) => x.n > 0);
     const attention = [
       { to: "/logistics", label: t("dash.lowStock"), n: n.logistics?.low_stock ?? 0, bad: false },
@@ -225,6 +263,8 @@ export function Dashboard() {
       const full: Row[] = [plain("dash.myOpen", n.reports.my_open), ...(n.reports.awaiting_review !== undefined ? [warn("dash.awaiting", n.reports.awaiting_review)] : [])];
       panels.push({ icon: "file", title: t("dash.reportsTitle"), rows: full });
     }
+    if (n.leave) panels.push({ icon: "calendar", title: t("dash.leaveTitle"),
+      rows: [warn("dash.leavePending", n.leave.pending_approval), plain("dash.leaveRequests7d", n.leave.requests_7d)] });
     if (n.logistics) panels.push({ icon: "box", title: t("dash.logisticsTitle"),
       rows: [warn("dash.lowStock", n.logistics.low_stock), warn("dash.assetsAttention", n.logistics.assets_attention)] });
     if (n.training) panels.push({ icon: "cap", title: t("dash.trainingTitle"),
@@ -245,16 +285,20 @@ export function Dashboard() {
     // Each is a shortcut to its page. Up to six that apply to this role are shown.
     const veh = vehicles.data?.combined;
     const approvalTotal = approvals.reduce((sum, x) => sum + x.n, 0);
-    const hasApprovalSource = n.reports?.awaiting_review !== undefined || (can("ranks.approve") && !!n.ranks);
+    const hasApprovalSource = n.reports?.awaiting_review !== undefined || (can("ranks.approve") && !!n.ranks) || !!n.leave;
     const logWarn = n.logistics ? n.logistics.low_stock + n.logistics.assets_attention : 0;
     const secAlerts = n.audit ? n.audit.failed_logins_24h + n.audit.denied_24h : 0;
     const a = att.data;
     const attRate = a && a.serving > 0 && a.recorded > 0 ? a.present / a.serving : undefined;
     const kpis = [
-      n.personnel && <Kpi key="p" to="/personnel" icon="users" label={t("dash.personnelTitle")} value={n.personnel.total} sub={t("dash.activeSub", { n: n.personnel.active.toLocaleString() })} />,
+      n.personnel && <Kpi key="p" to="/personnel" icon="users" label={t("dash.personnelTitle")} value={n.personnel.total} sub={t("dash.activeSub", { n: n.personnel.active.toLocaleString() })}
+        trend={n.personnel.new_30d !== undefined && n.personnel.new_prev_30d !== undefined
+          ? <Trend now={n.personnel.new_30d} before={n.personnel.new_prev_30d} window={t("dash.window30")} upIs="neutral" /> : undefined} />,
       attRate !== undefined && a && <Kpi key="att" to="/attendance" icon="calendar" label={t("dash.attendanceToday")} value={Math.round(attRate * 100)} suffix="%" ring={attRate}
         sub={`${a.present.toLocaleString()} / ${a.serving.toLocaleString()} ${t("att.status.present").toLowerCase()}`} />,
       hasApprovalSource && <Kpi key="ap" to="/reports" icon="clock" label={t("dash.pending")} value={approvalTotal} tone={approvalTotal > 0 ? "warn" : ""} />,
+      n.leave && <Kpi key="lv" to="/leave" icon="calendar" label={t("dash.leavePending")} value={n.leave.pending_approval} tone={n.leave.pending_approval > 0 ? "warn" : ""}
+        trend={<Trend now={n.leave.requests_7d} before={n.leave.requests_prev_7d} window={t("dash.window7")} upIs="neutral" />} />,
       n.logistics && <Kpi key="l" to="/logistics" icon="box" label={t("dash.logWarnings")} value={logWarn} tone={logWarn > 0 ? "warn" : ""}
         sub={`${n.logistics.low_stock} ${t("dash.lowStock").toLowerCase()}`} />,
       n.audit && <Kpi key="sec" to="/audit" icon="alert" label={t("dash.securityAlerts")} value={secAlerts} tone={secAlerts > 0 ? "bad" : ""} />,
@@ -263,7 +307,7 @@ export function Dashboard() {
       n.scope && <Kpi key="u" to="/organization" icon="layers" label={t("dash.units")} value={n.scope.units_in_scope} />,
       n.reports?.awaiting_review === undefined && n.reports && <Kpi key="r" to="/reports" icon="file" label={t("dash.myOpen")} value={n.reports.my_open} />,
       n.accounts && <Kpi key="c" to="/users" icon="lock" label={t("dash.activeUsers")} value={n.accounts.active} />,
-    ].filter(Boolean).slice(0, 6);
+    ].filter(Boolean).slice(0, 8);
 
     const row = (x: { to: string; label: string; n: number; bad: boolean }) => (
       <Link key={x.label} className={`approval-row${x.bad ? " bad" : ""}`} to={x.to}>
@@ -378,6 +422,7 @@ export function Dashboard() {
           })} />
         )}
       </div>
+      <SignInNote />
       <MyWork />
       <ErrorNotice error={error} />
       {loading && !n ? <Skeleton label={t("common.loading")} /> : body}

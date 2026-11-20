@@ -91,6 +91,8 @@ class RoleCompatibilityTests(BaseApiTest):
             allowed |= BRANCH_ADMIN_RECORDS if role == "branch_admin" else set()
             allowed |= DEATH_GAINS.get(role, set())
             allowed |= {"weapons.view"} if role == "regional_chief" else set()  # regional chief views its region's weapon register
+            allowed |= {"credentials.view", "credentials.issue"} if role in ("regional_chief", "branch_admin") else set()  # ID cards and letters
+            allowed |= {"schedules.manage"} if role == "regional_chief" else set()  # scheduled email reports for its region
             allowed |= {"vehicles.view"} if role in ("regional_chief", "branch_admin") else set()  # vehicle register: oversight roles read it
             allowed |= {"vehicles.configure"} if role == "hq_admin" else set()  # HQ admin maintains the vehicle categories
             allowed |= {"payroll.view"} if role == "auditor" else set()  # the auditor reads payroll (regional finance), never acts on it

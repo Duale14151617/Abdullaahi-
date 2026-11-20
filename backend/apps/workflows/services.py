@@ -14,6 +14,7 @@ from apps.core.errors import field_error
 from apps.core.exceptions import VersionConflict
 
 from .models import ApprovalAction, Notification, Submission, SubmissionRevision
+from .notify_email import email_new
 
 S = Submission.Status
 EDITABLE = {S.DRAFT, S.RETURNED, S.AMENDED}
@@ -92,7 +93,9 @@ def reviewers_for(unit, exclude_ids=(), code="reports.review"):
 
 
 def notify(kind, sub, recipients):
+    recipients = list(recipients)
     Notification.objects.bulk_create([Notification(recipient=u, kind=kind, submission=sub) for u in recipients])
+    email_new(recipients)
 
 
 def perform_transition(request, sub, action, expected_version, comment=""):

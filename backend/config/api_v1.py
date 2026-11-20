@@ -4,7 +4,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
 from apps.accounts import views as acc
-from apps.core.views import LiveView, ReadyView, ProfileView
+from apps.core.views import LiveView, ReadyView, ProfileView, SystemStatusView
 from apps.audit.views import AuditEventViewSet
 from apps.dashboard.views import DashboardActivityView, DashboardView
 from apps.personnel.combined import CombinedReportViewSet
@@ -42,6 +42,8 @@ from apps.organization.views import (ChangeRequestViewSet, DepartmentViewSet, De
 from apps.ranks.views import RankViewSet
 from apps.analytics.views import AnalyticsViewSet
 from apps.inventories.views import InventoryViewSet
+from apps.issuance.views import IssuedDocumentViewSet, VerifyView
+from apps.schedules.views import ReportScheduleViewSet, RunDueView
 from apps.integrations.views import ExtAnalyticsView, ExtMeView, IntegrationClientViewSet
 
 router = DefaultRouter()
@@ -60,6 +62,8 @@ router.register("organization/structure", StructureViewSet, basename="structure"
 router.register("organization/structure-changes", StructureChangeViewSet, basename="structure-change")
 router.register("organization/branches", ServiceBranchViewSet, basename="branch")
 router.register("ranks", RankViewSet, basename="rank")
+router.register("credentials", IssuedDocumentViewSet, basename="credential")
+router.register("schedules", ReportScheduleViewSet, basename="report-schedule")
 router.register("personnel", PersonnelViewSet, basename="personnel")
 router.register("reports/types", ReportTypeViewSet, basename="report-type")
 router.register("reports/submissions", SubmissionViewSet, basename="submission")
@@ -136,6 +140,9 @@ urlpatterns = [
     path("dashboard/", DashboardView.as_view()),
     path("dashboard/activity/", DashboardActivityView.as_view()),
     path("profile/", ProfileView.as_view()),
+    path("system/status/", SystemStatusView.as_view()),
+    path("verify/<str:code>/", VerifyView.as_view()),  # public: QR check of an ID card or letter
+    path("schedules/run-due/", RunDueView.as_view()),  # token-protected trigger for an outside scheduler
     path("health/live/", LiveView.as_view()),
     path("health/ready/", ReadyView.as_view()),
     # External (machine-client) API, 2.0: bearer-key auth, read-only, aggregate analytics only.

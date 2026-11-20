@@ -63,10 +63,17 @@ import { OrgTree } from "./pages/OrgTree";
 import { MyRecord } from "./pages/MyRecord";
 import { StructureChanges } from "./pages/StructureChanges";
 import { UserDetail, Users } from "./pages/Users";
+import { Credentials } from "./pages/Credentials";
+import { CredentialView } from "./pages/CredentialView";
+import { Schedules } from "./pages/Schedules";
+import { Verify } from "./pages/Verify";
 
 export default function App() {
   const { me, loading } = useAuth();
   const location = useLocation();
+  // Public: opened by scanning the QR code on an ID card or letter. Works whether or not anyone is signed in.
+  const verifyMatch = /^\/verify\/([^/]+)\/?$/.exec(location.pathname);
+  if (verifyMatch) return <Routes><Route path="verify/:code" element={<Verify />} /></Routes>;
   if (loading) return <main><Loading /></main>;
   if (!me) {
     if (location.pathname === "/reset") return <ResetPassword />;
@@ -119,6 +126,9 @@ export default function App() {
         <Route path="tax" element={<Tax />} />
         <Route path="tax-oversight" element={<TaxOversight />} />
         <Route path="personnel-report" element={<PersonnelReport />} />
+        <Route path="credentials" element={<Credentials />} />
+        <Route path="credentials/:id" element={<CredentialView />} />
+        <Route path="schedules" element={<Schedules />} />
         <Route path="equipment" element={<Equipment />} />
         <Route path="equipment/:id" element={<EquipmentDetail />} />
         <Route path="holdings" element={<Holdings />} />

@@ -36,7 +36,17 @@ settings. One variable chooses the organization: `ARMYHQ_PROFILE=police`. The Ar
 7. **Account pictures.** HQ administrators and super administrators can set a profile picture for their own account and for other
    accounts (Account page, or Users, open an account). Only a super administrator can change a super administrator's picture. An
    account without its own picture shows the photo on its linked personnel record, else the default.
-8. **Sign in** as `superadmin`, then create the administrators and add districts, stations and people with the normal tools.
+8. **Notification emails (optional).** Set `NOTIFICATION_EMAILS_ENABLED=1` once email works. Each user then chooses "Email me when I
+   have new notifications" on their Account page (needs a verified address). The email is generic ("you have N unread
+   notifications") and never names a person, report or leave request; at most one per user every 30 minutes
+   (`NOTIFICATION_EMAIL_MIN_MINUTES`), which also keeps a Gmail sender well inside its daily limit.
+9. **Printed documents.** Every PDF now carries the Police crest, headquarters name, a reference number, the date, who generated it
+   and a confidential footer. The reference is created in the browser to identify that printout; it is not a registered serial number.
+10. **Status footer and sign-in notice.** Signed-in pages end with a footer showing whether the system is healthy, the running version
+    and build, and a support contact: set `SUPPORT_CONTACT` (an email address or phone number) in Render to show it. The version
+    is only sent to signed-in users. On the dashboard each user sees their previous sign-in (time and address) and a warning if
+    sign-in attempts failed on their account in between; it is read from the audit log and can be dismissed for the session.
+11. **Sign in** as `superadmin`, then create the administrators and add districts, stations and people with the normal tools.
 
 ## Assumptions to confirm with the Police
 Labels are working labels: Somali names of the titles and units, and whether CID, Traffic and Tax Collection also exist as

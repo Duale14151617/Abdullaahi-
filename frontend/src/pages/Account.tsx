@@ -40,6 +40,8 @@ export function Account() {
     await reload();
   }); };
   const startOver = () => { setSentTo(null); setCode(""); setError(null); };
+  const alertsOn = me?.notify_email === true;
+  const toggleAlerts = () => run(async () => { await api("/auth/me/", { method: "PATCH", body: { notify_email: !alertsOn } }); await reload(); });
 
   return (
     <>
@@ -56,6 +58,15 @@ export function Account() {
           <AvatarEditor userId={me.id} onChanged={() => void reload()} />
         </section>
       ) : me?.personnel_id && <p className="muted">{t("account.photoNote")}</p>}
+      {me?.features.notification_email === true && (
+        <section className="card">
+          <label className="row" style={{ alignItems: "center", gap: ".6rem" }}>
+            <input type="checkbox" checked={alertsOn} disabled={busy || (!verified && !alertsOn)} onChange={() => void toggleAlerts()} />
+            <b>{t("acct.emailAlerts")}</b>
+          </label>
+          <p className="muted" style={{ marginBottom: 0 }}>{verified || alertsOn ? t("acct.emailAlertsHint") : t("acct.emailAlertsNeedsVerified")}</p>
+        </section>
+      )}
       <section className="card">
         <h2>{t("account.email")}</h2>
         {done && <Notice>{t("account.verifiedDone")}</Notice>}

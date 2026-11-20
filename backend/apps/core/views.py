@@ -4,6 +4,7 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.http import JsonResponse
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
@@ -52,6 +53,16 @@ class ReadyView(_Public):
         checks = {"database": _db_ok(), "cache": _cache_ok(), "migrations": _migrations_ok()}
         ok = all(checks.values())
         return JsonResponse({"status": "ok" if ok else "degraded", "checks": checks}, status=200 if ok else 503)
+
+
+class SystemStatusView(APIView):
+    """Footer facts for signed-in users: is the system healthy, which version is running, who to contact. Booleans and short strings
+    only. The version and build are deliberately not on the public health or profile endpoints."""
+
+    def get(self, request):
+        healthy = _db_ok() and _cache_ok()
+        return Response({"status": "operational" if healthy else "degraded", "version": settings.APP_VERSION,
+                         "build": settings.APP_BUILD, "support": settings.SUPPORT_CONTACT})
 
 
 # What the login page and header call this deployment. Public, read-only, no secrets.

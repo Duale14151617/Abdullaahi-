@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { Chip, ErrorNotice, Field, Notice, PageHeader, TabPanel, Tabs } from "../components/ui";
 import { UnitPicker } from "../components/UnitPicker";
 import { useI18n, type Key } from "../i18n";
+import { formatDay } from "../lib/format";
 
 interface Named { id: string; code: string; name_en: string; name_so: string }
 type State = "eligible" | "not_yet" | "blocked" | "no_rule" | "no_next";
@@ -44,7 +45,7 @@ function List() {
   const [failed, setFailed] = useState<{ index: number; code: string }[]>([]);
   const [made, setMade] = useState<number | null>(null);
   const data = useFetch<{ counts: Record<State, number>; results: Row[] }>(unit ? "/promotion/eligibility/" : null, { org_unit: unit, state: state || undefined });
-  const day = (s: string) => new Date(`${s}T00:00:00`).toLocaleDateString(lang === "so" ? "so-SO" : "en-GB", { dateStyle: "medium" });
+  const day = (s: string) => formatDay(s, lang);
   const chosen = (data.data?.results ?? []).filter((r) => r.state === "eligible" && picked[r.personnel.id]);
 
   async function propose(e: FormEvent<HTMLFormElement>) {

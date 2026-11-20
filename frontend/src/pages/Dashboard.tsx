@@ -14,6 +14,7 @@ import { ExportPdfButton } from "../components/ExportPdfButton";
 import { ActivityChart, ChartPanel, RangeSwitch, RegionChart } from "../components/DashboardCharts";
 import { MyWork } from "../components/MyWork";
 import { ExceptionsPanel, ReviewQueuePanel, SecurityPanel, TasksPanel, TrainingPanel } from "../components/DashboardPanels";
+import { formatNumber } from "../lib/format";
 
 type Row = [label: string, value: number, tone?: string];
 
@@ -35,8 +36,8 @@ function Trend({ now, before, window, upIs = "neutral" }: { now: number; before:
   const dir = diff > 0 ? "up" : diff < 0 ? "down" : "flat";
   const good = dir === "flat" || upIs === "neutral" ? "" : (dir === "up") === (upIs === "good") ? " good" : " worse";
   const arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : "▬";
-  const text = dir === "flat" ? t("dash.trendSame") : `${diff > 0 ? "+" : "−"}${Math.abs(diff).toLocaleString()}`;
-  return <span className={`trend ${dir}${good}`} title={t("dash.trendTitle", { now: now.toLocaleString(), before: before.toLocaleString(), window })}>
+  const text = dir === "flat" ? t("dash.trendSame") : `${diff > 0 ? "+" : "−"}${formatNumber(Math.abs(diff))}`;
+  return <span className={`trend ${dir}${good}`} title={t("dash.trendTitle", { now: formatNumber(now), before: formatNumber(before), window })}>
     <span aria-hidden="true">{arrow}</span> {text} <span className="trend-win">{window}</span></span>;
 }
 
@@ -45,7 +46,7 @@ function Kpi({ icon, label, value, to, suffix = "", tone = "", ring, sub, trend 
   return (
     <Link to={to} className={`kpi ${tone}${value === 0 && !tone ? " zero" : ""}`}>
       {ring !== undefined ? <Ring share={ring} /> : <span className={`ico ${tone}`}><Icon name={icon} /></span>}
-      <span className="num">{value.toLocaleString()}{suffix}</span>
+      <span className="num">{formatNumber(value)}{suffix}</span>
       <span className="lbl">{label}</span>
       {sub ? <span className="sub">{sub}</span> : null}
       {trend}
@@ -89,10 +90,10 @@ function AttendanceCard({ a, unitName }: { a: { data: AttendanceDay | null | und
           <Donut parts={[{ key: "p", value: d.present, tone: "ok" }, { key: "a", value: d.absent, tone: "bad" }, { key: "l", value: d.on_leave, tone: "warn" }, { key: "n", value: d.not_recorded, tone: "mute" }]}
                  centre={rate === null ? "-" : `${rate}%`} caption={t("att.status.present")} />
           <ul className="legend-list">
-            <li><span className="dot ok" />{t("att.status.present")}<b>{d.present.toLocaleString()}</b></li>
-            <li><span className="dot bad" />{t("att.status.absent")}<b>{d.absent.toLocaleString()}</b></li>
-            <li><span className="dot warn" />{t("att.status.on_leave")}<b>{d.on_leave.toLocaleString()}</b></li>
-            <li><span className="dot mute" />{t("att.notRecorded")}<b>{d.not_recorded.toLocaleString()}</b></li>
+            <li><span className="dot ok" />{t("att.status.present")}<b>{formatNumber(d.present)}</b></li>
+            <li><span className="dot bad" />{t("att.status.absent")}<b>{formatNumber(d.absent)}</b></li>
+            <li><span className="dot warn" />{t("att.status.on_leave")}<b>{formatNumber(d.on_leave)}</b></li>
+            <li><span className="dot mute" />{t("att.notRecorded")}<b>{formatNumber(d.not_recorded)}</b></li>
           </ul>
         </div>
       )}
@@ -162,7 +163,7 @@ function Panel({ icon, title, rows, meter }: { icon: IconName; title: string; ro
       <header><span className="ico"><Icon name={icon} size={18} /></span><h2>{title}</h2></header>
       {meter !== undefined && <div className="meter" aria-hidden="true"><span style={{ width: `${Math.round(meter * 100)}%` }} /></div>}
       {rows.map(([label, value, tone]) => (
-        <div className="prow" key={label}><span>{label}</span><b className={tone || (value === 0 ? "zero" : "")}>{value.toLocaleString()}</b></div>
+        <div className="prow" key={label}><span>{label}</span><b className={tone || (value === 0 ? "zero" : "")}>{formatNumber(value)}</b></div>
       ))}
     </section>
   );
@@ -277,9 +278,9 @@ export function Dashboard() {
     const regionRows = n.personnel?.by_region ?? [];
     const daily = n.audit?.daily;
     const series = range === 7 ? daily : longer.data?.daily;
-    pdfSections = panels.map((p) => ({ title: p.title, rows: (p.pdf ?? p.rows).map(([l, v]) => [l, v.toLocaleString()] as [string, string]) }));
+    pdfSections = panels.map((p) => ({ title: p.title, rows: (p.pdf ?? p.rows).map(([l, v]) => [l, formatNumber(v)] as [string, string]) }));
     if (regionRows.length > 1) pdfSections.push({ title: t("dash.byRegion"),
-      rows: regionRows.map((r) => [r.code === null ? t("level.headquarters") : name(r), r.total.toLocaleString()] as [string, string]) });
+      rows: regionRows.map((r) => [r.code === null ? t("level.headquarters") : name(r), formatNumber(r.total)] as [string, string]) });
 
     // Headline cards, in the order an officer scans them: strength, attendance, what waits for a decision, urgent logistics, then security.
     // Each is a shortcut to its page. Up to six that apply to this role are shown.
@@ -291,11 +292,11 @@ export function Dashboard() {
     const a = att.data;
     const attRate = a && a.serving > 0 && a.recorded > 0 ? a.present / a.serving : undefined;
     const kpis = [
-      n.personnel && <Kpi key="p" to="/personnel" icon="users" label={t("dash.personnelTitle")} value={n.personnel.total} sub={t("dash.activeSub", { n: n.personnel.active.toLocaleString() })}
+      n.personnel && <Kpi key="p" to="/personnel" icon="users" label={t("dash.personnelTitle")} value={n.personnel.total} sub={t("dash.activeSub", { n: formatNumber(n.personnel.active) })}
         trend={n.personnel.new_30d !== undefined && n.personnel.new_prev_30d !== undefined
           ? <Trend now={n.personnel.new_30d} before={n.personnel.new_prev_30d} window={t("dash.window30")} upIs="neutral" /> : undefined} />,
       attRate !== undefined && a && <Kpi key="att" to="/attendance" icon="calendar" label={t("dash.attendanceToday")} value={Math.round(attRate * 100)} suffix="%" ring={attRate}
-        sub={`${a.present.toLocaleString()} / ${a.serving.toLocaleString()} ${t("att.status.present").toLowerCase()}`} />,
+        sub={`${formatNumber(a.present)} / ${formatNumber(a.serving)} ${t("att.status.present").toLowerCase()}`} />,
       hasApprovalSource && <Kpi key="ap" to="/reports" icon="clock" label={t("dash.pending")} value={approvalTotal} tone={approvalTotal > 0 ? "warn" : ""} />,
       n.leave && <Kpi key="lv" to="/leave" icon="calendar" label={t("dash.leavePending")} value={n.leave.pending_approval} tone={n.leave.pending_approval > 0 ? "warn" : ""}
         trend={<Trend now={n.leave.requests_7d} before={n.leave.requests_prev_7d} window={t("dash.window7")} upIs="neutral" />} />,

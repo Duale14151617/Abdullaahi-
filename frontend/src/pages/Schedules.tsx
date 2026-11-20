@@ -4,6 +4,7 @@ import { useFetch } from "../api/useFetch";
 import { ErrorNotice, Field, Loading, Notice, PageHeader } from "../components/ui";
 import { UnitPicker } from "../components/UnitPicker";
 import { useI18n } from "../i18n";
+import { formatDateTime } from "../lib/format";
 
 interface Person { id: string; full_name: string; username: string }
 interface Sched {
@@ -40,7 +41,7 @@ const L = {
 
 function fmt(iso: string | null, lang: string, never: string): string {
   if (!iso) return never;
-  return new Date(iso).toLocaleString(lang === "so" ? "so-SO" : "en-GB", { dateStyle: "medium", timeStyle: "short" });
+  return formatDateTime(iso, lang);
 }
 
 /** Create and manage emailed reports (the weekly strength report to commanders, for example). */

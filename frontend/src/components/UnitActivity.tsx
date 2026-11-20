@@ -3,7 +3,7 @@ import type { UnitProfile } from "../api/types";
 import { useI18n, type Key } from "../i18n";
 import { timeAgo } from "../lib/time";
 import { BarRow } from "./OrgBits";
-import { Notice } from "./ui";
+import { EmptyState, Notice } from "./ui";
 
 function Tiles({ items }: { items: { label: string; value: number | string }[] }) {
   return (
@@ -63,7 +63,7 @@ export function UnitActivity({ profile }: { profile: UnitProfile }) {
           <Tiles items={[{ label: t("act.today"), value: a.occurrence.today }, { label: t("act.period"), value: a.occurrence.last_30_days }]} />
           {a.occurrence.by_category.map((c) => <BarRow key={c.category} label={t(`ob.cat.${c.category}` as Key)} value={c.count} max={maxCat} />)}
           <h3>{t("act.recent")}</h3>
-          {a.occurrence.recent.length === 0 ? <p className="muted">{t("act.none")}</p> : (
+          {a.occurrence.recent.length === 0 ? <EmptyState compact icon="activity" title={t("act.none")} hint={t("common.emptyHint")} /> : (
             <table><tbody>{a.occurrence.recent.map((e) => (
               <tr key={e.id}><td><b>{e.ob_number}</b></td><td>{t(`ob.cat.${e.category}` as Key)}</td><td>{e.summary}</td>
                 <td className="muted">{timeAgo(e.occurred_at, lang)}</td></tr>

@@ -9,6 +9,7 @@ import { UnitPicker } from "../components/UnitPicker";
 import { ExportPdfButton, type PdfContent } from "../components/ExportPdfButton";
 import { downloadText, toCsv } from "../lib/csv";
 import { useI18n } from "../i18n";
+import { formatMoney, formatMoneyList } from "../lib/format";
 
 interface UnitB { id: string; code: string; name_en: string; name_so: string }
 interface TaxType { id: string; code: string; name_en: string; name_so: string; kind: string; default_amount: string | null; currency: string; recurring: boolean; period_months: number; active: boolean; version: number }
@@ -30,7 +31,7 @@ interface Report {
 interface Overdue { types: NameB[]; truncated: boolean; results: (Veh & { paid_until: Record<string, string | null> })[] }
 const today = () => new Date().toISOString().slice(0, 10);
 
-const tot = (a: Tot[]) => (a.length ? a.map((x) => `${x.total} ${x.currency}`).join(" + ") : "0");
+const tot = (a: Tot[]) => formatMoneyList(a);
 const clean = (f: Record<string, FormDataEntryValue>) => Object.fromEntries(Object.entries(f).filter(([, v]) => v !== ""));
 
 export function Tax() {
@@ -76,7 +77,7 @@ export function Tax() {
     { id: "date", header: t("tax.paidOn"), cell: (x) => x.paid_on, sort: (x) => x.paid_on },
     { id: "plate", header: t("tax.plate"), cell: (x) => x.vehicle.plate },
     { id: "type", header: t("tax.type"), cell: (x) => name(x.tax_type) },
-    { id: "amount", header: t("tax.amount"), align: "right", cell: (x) => `${x.amount} ${x.currency}`, sort: (x) => Number(x.amount) },
+    { id: "amount", header: t("tax.amount"), align: "right", cell: (x) => formatMoney(x.amount, x.currency), sort: (x) => Number(x.amount) },
     { id: "until", header: t("tax.paidUntil"), cell: (x) => x.period_to ?? x.reference ?? "—" },
     { id: "ho", header: t("tax.handover"), cell: (x) => (x.void ? <Chip tone="bad">{t("tax.void")}</Chip> : x.handover ?? <Chip tone="draft">{t("tax.withCollector")}</Chip>) },
     { id: "print", header: "", cell: (x) => x.void ? null : <ExportPdfButton build={() => receiptPdf(x)} filename={`receipt-${x.receipt_no}`} /> },
@@ -86,8 +87,8 @@ export function Tax() {
     { id: "no", header: t("tax.handoverNo"), cell: (x) => x.number },
     { id: "unit", header: t("tax.station"), cell: (x) => (x.org_unit ? name(x.org_unit) : "—") },
     { id: "by", header: t("tax.handedBy"), cell: (x) => `${x.handed_by} · ${x.handed_at.slice(0, 10)}` },
-    { id: "exp", header: t("tax.expected"), align: "right", cell: (x) => `${x.expected_amount} ${x.currency} (${x.payments_count})` },
-    { id: "cnt", header: t("tax.counted"), align: "right", cell: (x) => (x.counted_amount ? `${x.counted_amount} ${x.currency}` : "—") },
+    { id: "exp", header: t("tax.expected"), align: "right", cell: (x) => `${formatMoney(x.expected_amount, x.currency)} (${x.payments_count})` },
+    { id: "cnt", header: t("tax.counted"), align: "right", cell: (x) => (x.counted_amount ? formatMoney(x.counted_amount, x.currency) : "—") },
     { id: "diff", header: t("tax.difference"), align: "right", cell: (x) => (x.difference === null ? "—" : <Chip tone={Number(x.difference) === 0 ? "approved" : "bad"}>{x.difference}</Chip>) },
     { id: "act", header: "", cell: (x) => canConfirm && x.status === "submitted" ? <button type="button" onClick={() => {
       const counted = window.prompt(t("tax.countedPrompt", { expected: x.expected_amount, currency: x.currency })); if (counted === null || counted === "") return;
@@ -113,7 +114,7 @@ export function Tax() {
     title: `${t("tax.receiptTitle")} ${x.receipt_no}`, subtitle: t("tax.reprintNote"),
     sections: [{ columns: [{ header: t("tax.field"), width: 1 }, { header: t("tax.value"), width: 2 }], rows: [
       [t("tax.receiptNo"), x.receipt_no], [t("tax.plate"), x.vehicle.plate], [t("tax.owner"), x.vehicle.owner_name], [t("tax.type"), name(x.tax_type)],
-      [t("tax.amount"), `${x.amount} ${x.currency}`], [t("tax.paidOn"), x.paid_on], ...(x.period_to ? [[t("tax.paidUntil"), x.period_to]] : []),
+      [t("tax.amount"), formatMoney(x.amount, x.currency)], [t("tax.paidOn"), x.paid_on], ...(x.period_to ? [[t("tax.paidUntil"), x.period_to]] : []),
       ...(x.reference ? [[t("tax.reference"), x.reference]] : [])] }],
   });
   const stamp = (d: string | null | undefined) => d ?? t("tax.never");
@@ -132,14 +133,14 @@ export function Tax() {
     return { title: t("tax.overdueTitle"), subtitle: o.truncated ? t("tax.truncated") : undefined, landscape: true,
       sections: [{ columns: o.head.map((h, i) => ({ header: h, width: i < 2 ? 2 : 1 })), rows: o.body }] };
   };
-  const repRows = () => (report.data?.rows ?? []).map((r) => [r.date, name(r.unit), name(r.tax_type), String(r.count), `${r.total} ${r.currency}`]);
+  const repRows = () => (report.data?.rows ?? []).map((r) => [r.date, name(r.unit), name(r.tax_type), String(r.count), formatMoney(r.total, r.currency)]);
   const repHead = () => [t("tax.paidOn"), t("tax.station"), t("tax.type"), t("tax.receipts"), t("tax.amount")];
   const reportPdf = (): PdfContent => ({
     title: t("tax.reportTitle"), subtitle: `${from} → ${to} · ${t("tax.voidedCount", { n: report.data?.voided ?? 0 })}`,
     sections: [
       { columns: repHead().map((h, i) => ({ header: h, width: i === 1 ? 2 : 1, align: i >= 3 ? "right" as const : "left" as const })), rows: repRows() },
       ...(report.data?.held_by_collectors.length ? [{ heading: t("tax.heldHeading"), columns: [{ header: t("tax.station"), width: 2 }, { header: t("tax.receipts"), width: 1, align: "right" as const }, { header: t("tax.amount"), width: 1, align: "right" as const }],
-        rows: report.data.held_by_collectors.map((h) => [name(h.unit), String(h.count), `${h.total} ${h.currency}`]) }] : []),
+        rows: report.data.held_by_collectors.map((h) => [name(h.unit), String(h.count), formatMoney(h.total, h.currency)]) }] : []),
     ],
   });
 
@@ -172,7 +173,7 @@ export function Tax() {
         <form onSubmit={(e) => void receive(e)} className="card">
           <h2>{paying.plate} · {paying.owner_name}</h2>
           <Field label={t("tax.type")}><select name="tax_type" required defaultValue="">
-            <option value="" disabled>—</option>{typeList.filter((x) => x.active).map((x) => <option key={x.id} value={x.id}>{name(x)}{x.default_amount ? ` — ${x.default_amount} ${x.currency}` : ""}</option>)}</select></Field>
+            <option value="" disabled>—</option>{typeList.filter((x) => x.active).map((x) => <option key={x.id} value={x.id}>{name(x)}{x.default_amount ? ` — ${formatMoney(x.default_amount, x.currency)}` : ""}</option>)}</select></Field>
           <Field label={t("tax.receiptNo")}><input name="receipt_no" required maxLength={40} /></Field>
           <Field label={t("tax.amountOnReceipt")}><input name="amount" type="number" step="0.01" min="0.01" inputMode="decimal" /></Field>
           <Field label={t("tax.paidOn")}><input name="paid_on" type="date" max={new Date().toISOString().slice(0, 10)} /></Field>
@@ -217,7 +218,7 @@ export function Tax() {
           </table>
           {(report.data?.held_by_collectors.length ?? 0) > 0 && (<>
             <h3>{t("tax.heldHeading")}</h3>
-            <ul>{report.data?.held_by_collectors.map((h, i) => <li key={i}>{name(h.unit)} · {h.count} · {h.total} {h.currency}</li>)}</ul>
+            <ul>{report.data?.held_by_collectors.map((h, i) => <li key={i}>{name(h.unit)} · {h.count} · {formatMoney(h.total, h.currency)}</li>)}</ul>
           </>)}
         </section>
       )}
@@ -225,7 +226,7 @@ export function Tax() {
         <section className="card">
           <p className="muted">{t("tax.typesHelp")}</p>
           <ul>{typeList.map((x) => (
-            <li key={x.id}>{name(x)} · {x.recurring ? t("tax.recurring", { months: x.period_months }) : t("tax.oneOff")} · {x.default_amount ? `${x.default_amount} ${x.currency}` : t("tax.noAmount")}{" "}
+            <li key={x.id}>{name(x)} · {x.recurring ? t("tax.recurring", { months: x.period_months }) : t("tax.oneOff")} · {x.default_amount ? formatMoney(x.default_amount, x.currency) : t("tax.noAmount")}{" "}
               <button type="button" className="secondary" onClick={() => { const v = window.prompt(t("tax.amountPrompt", { name: name(x) }), x.default_amount ?? ""); if (v !== null) void post(`/tax/${x.id}/types/update/`, { version: x.version, default_amount: v }); }}>{t("tax.setAmount")}</button>{" "}
               <button type="button" className="secondary" onClick={() => void post(`/tax/${x.id}/types/update/`, { version: x.version, active: !x.active })}>{x.active ? t("tax.switchOff") : t("tax.switchOn")}</button></li>))}
           </ul>

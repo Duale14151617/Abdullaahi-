@@ -6,6 +6,7 @@ import { useFetch } from "../api/useFetch";
 import { Chip, ErrorNotice, Field, PageHeader } from "../components/ui";
 import { DataTable, type Column } from "../components/DataTable";
 import { useI18n } from "../i18n";
+import { formatMoney } from "../lib/format";
 
 interface VehicleB { id: string; vehicle_id: string; plate: string; make: string; model: string }
 interface PersonB { full_name: string; service_number: string | null }
@@ -68,7 +69,7 @@ export function VehicleLog() {
     { id: "type", header: t("vlog.fuelType"), cell: (x) => t(`vlog.fuel.${x.fuel_type}` as never) },
     { id: "litres", header: t("vlog.litres"), align: "right", cell: (x) => x.litres, sort: (x) => Number(x.litres) },
     { id: "odo", header: t("vlog.odometer"), align: "right", cell: (x) => x.odometer, sort: (x) => x.odometer },
-    ...(fuel.data?.results.some((x) => x.cost !== undefined) ? [{ id: "cost", header: t("vlog.cost"), align: "right" as const, cell: (x: Fuel) => (x.cost ? `${x.cost} ${x.currency ?? ""}` : "—") }] : []),
+    ...(fuel.data?.results.some((x) => x.cost !== undefined) ? [{ id: "cost", header: t("vlog.cost"), align: "right" as const, cell: (x: Fuel) => (x.cost ? formatMoney(x.cost, x.currency) : "—") }] : []),
     { id: "station", header: t("vlog.station"), cell: (x) => x.station || "—" },
     { id: "state", header: t("vlog.state"), cell: (x) => (x.void ? <Chip tone="bad">{t("vlog.state.void")}</Chip> : null) },
     { id: "actions", header: "", cell: (x) => canEdit && !x.void ? <button type="button" className="secondary" onClick={() => voidRow("fuel", x)}>{t("vlog.void")}</button> : null },
@@ -99,7 +100,7 @@ export function VehicleLog() {
           </select>
         </Field>
       </div>
-      {s && <p>{t("vlog.summary", { trips: s.trips, km: s.distance_km, litres: s.litres, rate: s.litres_per_100km ?? "—" })}{s.cost !== undefined ? ` · ${t("vlog.cost")}: ${s.cost}` : ""}</p>}
+      {s && <p>{t("vlog.summary", { trips: s.trips, km: s.distance_km, litres: s.litres, rate: s.litres_per_100km ?? "—" })}{s.cost !== undefined ? ` · ${t("vlog.cost")}: ${formatMoney(s.cost)}` : ""}</p>}
       {error != null && <ErrorNotice error={error} />}
       {adding && (
         <form onSubmit={(e) => void submit(e)} className="card">

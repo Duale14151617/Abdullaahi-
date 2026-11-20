@@ -6,6 +6,7 @@ import { useFetch } from "../api/useFetch";
 import { Chip, ErrorNotice, Field, PageHeader } from "../components/ui";
 import { DataTable, type Column } from "../components/DataTable";
 import { useI18n } from "../i18n";
+import { formatTime } from "../lib/format";
 
 interface VehicleB { id: string; vehicle_id: string; plate: string; make: string; model: string }
 interface Tracker { id: string; vehicle: VehicleB; device_ref: string; active: boolean; last_seen_at: string | null; version: number }
@@ -41,7 +42,7 @@ function Plot({ rows }: { rows: Pos[] }) {
 }
 
 export function VehicleTracking() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { can } = useAuth();
   const canReport = can("vehicles.position");
   const [vehicle, setVehicle] = useState("");
@@ -79,7 +80,7 @@ export function VehicleTracking() {
         if (now - lastSent.current < 60_000) return;
         lastSent.current = now;
         api("/vehicle-tracking/report/", { method: "POST", body: { vehicle, latitude: g.coords.latitude.toFixed(6), longitude: g.coords.longitude.toFixed(6), accuracy_m: Math.round(g.coords.accuracy), source: "phone" } })
-          .then(() => { setLiveInfo(t("trk.liveSent", { time: new Date().toLocaleTimeString() })); latest.reload(); })
+          .then(() => { setLiveInfo(t("trk.liveSent", { time: formatTime(new Date(), lang) })); latest.reload(); })
           .catch(() => setLiveInfo(t("trk.liveFailed")));
       },
       () => { setLive(false); setLiveInfo(t("trk.geoDenied")); },

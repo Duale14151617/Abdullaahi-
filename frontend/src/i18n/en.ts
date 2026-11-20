@@ -12,6 +12,7 @@ export const en = {
   "common.edit": "Edit",
   "common.loading": "Loading…",
   "common.empty": "Nothing to show yet.",
+  "common.emptyHint": "Records appear here as soon as they are added.",
   "common.retry": "Try again",
   "common.signOut": "Sign out",
   "common.search": "Search",

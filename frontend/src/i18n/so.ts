@@ -16,6 +16,7 @@ export const so: Record<keyof typeof en, string> = {
   "common.edit": "Wax ka beddel",
   "common.loading": "Waa la rarayaa…",
   "common.empty": "Weli wax lagu muujiyo ma jiraan.",
+  "common.emptyHint": "Diiwaanadu halkan ayay ka muuqan doonaan marka la daro.",
   "common.retry": "Isku day mar kale",
   "common.signOut": "Ka bax",
   "common.search": "Raadi",

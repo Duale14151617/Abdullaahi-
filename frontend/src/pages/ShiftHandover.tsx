@@ -4,7 +4,7 @@ import type { Page } from "../api/types";
 import { useFetch } from "../api/useFetch";
 import { useAuth } from "../auth/AuthContext";
 import { ExportPdfButton, type PdfContent } from "../components/ExportPdfButton";
-import { Chip, ErrorNotice, Field, formatDate, Notice, PageHeader } from "../components/ui";
+import { EmptyState, Chip, ErrorNotice, Field, formatDate, Notice, PageHeader } from "../components/ui";
 import { UnitPicker } from "../components/UnitPicker";
 import { useI18n } from "../i18n";
 
@@ -135,7 +135,7 @@ export function ShiftHandover() {
         <h3>{t("hnd.history")}</h3>
         <label className="field"><span>{t("hnd.onlyWaiting")}</span>
           <input type="checkbox" checked={onlyWaiting} onChange={(e) => setOnlyWaiting(e.target.checked)} /></label>
-        {list.data && list.data.results.length === 0 && <p className="muted">{t("common.empty")}</p>}
+        {list.data && list.data.results.length === 0 && <EmptyState compact icon="swap" title={t("common.empty")} hint={t("common.emptyHint")} />}
         <ul className="list">{(list.data?.results ?? []).map((n) => card(n, false))}</ul>
       </section>
     </>

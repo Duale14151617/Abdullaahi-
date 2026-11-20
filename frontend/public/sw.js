@@ -4,9 +4,9 @@
    When the network is down, page loads show a plain offline screen. Bump VERSION to refresh all devices.
    v2 (offline desk): the generic app shell (index.html) is also kept so the offline desk can open with no signal. It is the same
    file for every user and holds no personal data; the records an officer enters offline are kept separately in an encrypted vault. */
-const VERSION = "policehq-v2";
+const VERSION = "policehq-v3";
 const SHELL = "/__shell__";
-const PRECACHE = ["/offline.html", "/offline.css", "/offline.js", "/icon-192.png", "/icon-512.png", "/favicon-32.png", "/puntland-flag-logo.png"];
+const PRECACHE = ["/offline.html", "/offline.css", "/offline.js", "/icon-192.png", "/icon-512.png", "/favicon-32.png", "/favicon.ico", "/puntland-flag-logo.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(VERSION).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));

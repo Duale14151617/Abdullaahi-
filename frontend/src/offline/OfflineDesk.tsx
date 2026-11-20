@@ -7,6 +7,7 @@ import { useI18n } from "../i18n";
 import { lastAssigned, offlineEventKinds, syncQueue } from "./sync";
 import * as vault from "./vault";
 import type { QueueItem, Snapshot } from "./vault";
+import { formatDateTime } from "../lib/format";
 
 interface Fac { kind: string; usable: boolean; org_unit: { id: string; name_en: string; name_so: string } | null }
 interface Rec { id: string; register_no: string; detainee_name: string }
@@ -163,7 +164,7 @@ export function OfflineDesk() {
         {items.length === 0 ? <p className="muted">{t("off.queueEmpty")}</p> : (
           <ul>{items.map((i) => (
             <li key={i.id}>
-              {i.label} <span className="muted">· {new Date(i.created_at).toLocaleString(lang === "so" ? "so-SO" : "en-GB")}</span>
+              {i.label} <span className="muted">· {formatDateTime(i.created_at, lang)}</span>
               {i.state === "attention" && <div role="alert"><strong>{t("off.attention")}:</strong> {i.problem}</div>}
               {" "}<button type="button" className="secondary" onClick={() => void discard(i)}>{t("off.discard")}</button>
             </li>))}</ul>)}
@@ -171,7 +172,7 @@ export function OfflineDesk() {
         {!me && <p className="muted">{t("off.signInToSync")} <Link to="/">{t("off.backToSignIn")}</Link></p>}
       </section>
       <section className="card">
-        <p className="muted">{snap ? t("off.snapshotAt", { when: new Date(snap.taken_at).toLocaleString(lang === "so" ? "so-SO" : "en-GB"), s: snap.stations.length, p: snap.in_custody.length }) : t("off.noSnapshot")}</p>
+        <p className="muted">{snap ? t("off.snapshotAt", { when: formatDateTime(snap.taken_at, lang), s: snap.stations.length, p: snap.in_custody.length }) : t("off.noSnapshot")}</p>
         <button type="button" className="secondary" disabled={busy || !online || !me} onClick={() => void download()}>{t("off.download")}</button>
       </section>
       <form className="card" onSubmit={(e) => void addBooking(e)}>

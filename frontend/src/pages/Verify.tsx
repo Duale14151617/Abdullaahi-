@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { brand, emblemName } from "../lib/brand";
 import { useI18n } from "../i18n";
+import { useDocumentTitle } from "../lib/pageTitles";
 
 interface Result {
   state: "valid" | "revoked" | "expired" | "not_serving"; kind: "id_card" | "letter"; reference: string; issued_on: string;
@@ -29,8 +30,9 @@ const L = {
 /** Public page opened by scanning the QR code. No sign-in; shows only what the server allows anyone to see. */
 export function Verify() {
   const { code } = useParams();
-  const { lang, setLang } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const s = L[lang === "so" ? "so" : "en"];
+  useDocumentTitle(s.title, t("app.name"));
   const [res, setRes] = useState<Result | null>(null);
   const [problem, setProblem] = useState<"" | "unknown" | "offline">("");
 

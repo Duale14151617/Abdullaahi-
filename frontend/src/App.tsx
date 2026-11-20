@@ -74,7 +74,7 @@ export default function App() {
   // Public: opened by scanning the QR code on an ID card or letter. Works whether or not anyone is signed in.
   const verifyMatch = /^\/verify\/([^/]+)\/?$/.exec(location.pathname);
   if (verifyMatch) return <Routes><Route path="verify/:code" element={<Verify />} /></Routes>;
-  if (loading) return <main><Loading /></main>;
+  if (loading) return <main><Loading variant="cards" /></main>;
   if (!me) {
     if (location.pathname === "/reset") return <ResetPassword />;
     if (location.pathname === "/forgot") return <ForgotPassword />;

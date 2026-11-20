@@ -2,9 +2,10 @@ import { useMemo, useState, type FormEvent } from "react";
 import { api } from "../api/client";
 import { useFetch } from "../api/useFetch";
 import { useAuth } from "../auth/AuthContext";
-import { Chip, ErrorNotice, Field, Notice, PageHeader, TabPanel, Tabs } from "../components/ui";
+import { EmptyState, Chip, ErrorNotice, Field, Notice, PageHeader, TabPanel, Tabs } from "../components/ui";
 import { UnitPicker } from "../components/UnitPicker";
 import { useI18n, type Key } from "../i18n";
+import { formatDay, formatDayMonth } from "../lib/format";
 
 interface Named { code: string; name_en: string; name_so: string }
 interface LeaveRow {
@@ -54,7 +55,7 @@ function Requests() {
   const types = useFetch<{ results: LeaveType[] }>("/leave/types/");
   const list = useFetch<{ results: LeaveRow[] }>("/leave/", { mine: onlyMine ? 1 : undefined, status: status || undefined });
   const people = useFetch<RosterData>(canAsk && can("roster.view") && unit ? "/roster/" : null, { org_unit: unit });
-  const day = (s: string) => new Date(`${s}T00:00:00`).toLocaleDateString(lang === "so" ? "so-SO" : "en-GB", { dateStyle: "medium" });
+  const day = (s: string) => formatDay(s, lang);
 
   async function send(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -118,7 +119,7 @@ function Requests() {
           {canDecide && <label className="field"><span>{t("lv.onlyMine")}</span>
             <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} /></label>}
         </div>
-        {list.data && list.data.results.length === 0 && <p className="muted">{t("common.empty")}</p>}
+        {list.data && list.data.results.length === 0 && <EmptyState compact icon="check" title={t("common.empty")} hint={t("common.emptyHint")} />}
         <ul className="list">
           {(list.data?.results ?? []).map((r) => {
             const mine = r.personnel.id === me?.personnel_id;
@@ -171,7 +172,7 @@ function Roster() {
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(week, i)), [week]);
   const current = useMemo(() => new Map((data.data?.shifts ?? []).map((s) => [`${s.personnel}|${s.date}`, s.shift])), [data.data]);
   const onLeave = (pid: string, d: string) => (data.data?.leave ?? []).some((l) => l.personnel === pid && l.from <= d && d <= l.to);
-  const head = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString(lang === "so" ? "so-SO" : "en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const head = (d: string) => formatDayMonth(d, lang, "short");
 
   async function save() {
     const entries = Object.entries(edits).map(([k, shift]) => { const [personnel, date] = k.split("|"); return { personnel, date, shift }; });

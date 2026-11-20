@@ -7,6 +7,7 @@ import { ErrorNotice, Notice } from "../components/ui";
 import { useI18n } from "../i18n";
 import { InstallButton } from "../pwa/install";
 import { ThemeToggle } from "../theme/ThemeToggle";
+import { useDocumentTitle } from "../lib/pageTitles";
 
 const icon = (children: ReactNode) => (
   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7"
@@ -49,6 +50,7 @@ export function Login() {
     }
   }
 
+  useDocumentTitle(t("login.title"), t("app.name"));
   return (
     <div className="lp">
       <header className="lp-header">

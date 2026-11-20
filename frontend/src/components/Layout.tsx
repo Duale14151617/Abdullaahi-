@@ -14,6 +14,7 @@ import { StepUpDialog } from "./StepUpDialog";
 import { Icon, type IconName } from "./Icon";
 import { useMedia } from "./useMedia";
 import { InstallButton } from "../pwa/install";
+import { tabTitle, titleKeyFor } from "../lib/pageTitles";
 import { ThemeToggle } from "../theme/ThemeToggle";
 
 const SIDEBAR_KEY = "policehq.sidebar";
@@ -145,6 +146,11 @@ export function Layout() {
 
   // close after any navigation (link tap, back/forward) and when the viewport grows past the drawer breakpoint
   useEffect(() => { setOpen(false); }, [location.pathname]);
+  // the browser tab names the screen, in the interface language
+  const titleKey = titleKeyFor(location.pathname);
+  const pageTitle = titleKey ? t(titleKey) : null;
+  const appTitle = t("app.name");
+  useEffect(() => { document.title = tabTitle(pageTitle, appTitle); }, [pageTitle, appTitle]);
   useEffect(() => { if (!isMobile) setOpen(false); }, [isMobile]);
 
   // while the drawer is open: lock background scroll, move focus in, Escape closes, Tab stays inside

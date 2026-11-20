@@ -6,6 +6,7 @@ import { Chip, Field, PageHeader } from "../components/ui";
 import { UnitPicker } from "../components/UnitPicker";
 import { useI18n } from "../i18n";
 import { downloadText, toCsv } from "../lib/csv";
+import { formatMoneyList } from "../lib/format";
 
 interface UnitB { id: string; code: string; name_en: string; name_so: string }
 interface Money { currency: string; total: string }
@@ -14,7 +15,7 @@ interface StationRow extends Counts { unit: UnitB; region: UnitB | null }
 interface RegionRow extends Counts { unit: UnitB | null }
 interface Data { from: string; to: string; totals: Counts; regions: RegionRow[]; units: StationRow[] }
 
-const money = (m: Money[]) => (m.length ? m.map((x) => `${x.total} ${x.currency}`).join("; ") : "0");
+const money = (m: Money[]) => formatMoneyList(m, "; ");
 
 /** Tax collections by station and region for a period, the way the custody report is built: on screen, as CSV and as PDF. Counts and amounts only. */
 export function TaxOversight() {

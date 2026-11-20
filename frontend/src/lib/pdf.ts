@@ -238,7 +238,7 @@ export function buildPdf(doc: PdfDoc): Uint8Array {
   objs[1] = "<< /Type /Catalog /Pages 2 0 R >>";
   objs[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
   objs[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>";
-  objs[5] = `<< /Title (${esc(encode(doc.title))}) /Producer (${esc(encode((typeof document !== "undefined" && document.title) || "Puntland HQ"))})` +
+  objs[5] = `<< /Title (${esc(encode(doc.title))}) /Producer (${esc(encode(brand?.org || "Puntland HQ"))})` +
     (brand ? ` /Author (${esc(encode(brand.generatedBy))}) /Subject (${esc(encode(brand.reference))})` : "") + " >>";
   let next = 6;
   let imgId = 0;

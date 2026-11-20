@@ -3,6 +3,7 @@ import type { CombinedReport } from "../api/types";
 import { useFetch } from "../api/useFetch";
 import { ErrorNotice, Loading, Notice, formatDate } from "./ui";
 import { useI18n, type Key } from "../i18n";
+import { formatDay } from "../lib/format";
 
 /** Line of serving personnel per recorded day. Decorative shape plus a text summary, so it reads without the picture. */
 function TrendLine({ points }: { points: { date: string; serving: number }[] }) {
@@ -13,7 +14,7 @@ function TrendLine({ points }: { points: { date: string; serving: number }[] }) 
   const x = (i: number) => P + (i * (W - 2 * P)) / (points.length - 1);
   const y = (v: number) => H - P - ((v - lo) * (H - 2 * P)) / span;
   const first = points[0], last = points[points.length - 1];
-  const day = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(lang === "so" ? "so-SO" : "en-GB", { dateStyle: "medium" });
+  const day = (iso: string) => formatDay(iso, lang);
   return (
     <>
       <h3>{t("comb.trend")}</h3>

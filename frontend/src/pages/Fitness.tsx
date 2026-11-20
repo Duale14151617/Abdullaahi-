@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { Chip, ErrorNotice, Field, Notice, PageHeader } from "../components/ui";
 import { UnitPicker } from "../components/UnitPicker";
 import { useI18n, type Key } from "../i18n";
+import { formatDateTime, formatDay } from "../lib/format";
 
 interface Named { code: string; name_en: string; name_so: string }
 type Status = "fit" | "limited" | "unfit" | "under_review" | "unassessed";
@@ -21,12 +22,12 @@ const ENTRY_STATUSES = ["fit", "limited", "unfit", "under_review"] as const;
 
 /** Fitness for duty. Commanders see status, review date and duty restriction; only the medical officer sees the details. */
 export function Fitness() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [unit, setUnit] = useState("");
   const [state, setState] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const data = useFetch<{ counts: Record<string, number>; results: Row[] }>(unit ? "/fitness/" : null, { org_unit: unit, state: state || undefined });
-  const day = (s: string) => new Date(`${s}T00:00:00`).toLocaleDateString(undefined, { dateStyle: "medium" });
+  const day = (s: string) => formatDay(s, lang);
   return (
     <>
       <PageHeader title={t("ft.title")} subtitle={t("ft.subtitle")} />
@@ -79,7 +80,7 @@ function Person({ id, onChanged }: { id: string; onChanged: () => void }) {
   const [error, setError] = useState<unknown>(null);
   const [saved, setSaved] = useState(false);
   const [correcting, setCorrecting] = useState<string | null>(null);
-  const when = (s: string) => new Date(s).toLocaleString(lang === "so" ? "so-SO" : "en-GB", { dateStyle: "medium", timeStyle: "short" });
+  const when = (s: string) => formatDateTime(s, lang);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

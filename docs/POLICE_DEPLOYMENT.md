@@ -48,6 +48,26 @@ settings. One variable chooses the organization: `ARMYHQ_PROFILE=police`. The Ar
     sign-in attempts failed on their account in between; it is read from the audit log and can be dismissed for the session.
 11. **Sign in** as `superadmin`, then create the administrators and add districts, stations and people with the normal tools.
 
+## Backup codes, passkeys and the idle warning
+
+- **Backup codes.** When a user switches on the authenticator app they are shown 10 one-time codes (copy, download or print). A code can be typed in the authenticator-code box at sign-in or when confirming a sensitive action, and works once. Account page: make a new set any time (the old set stops working). Using a code is written to the audit log, and for privileged accounts it raises an alert.
+- **Passkeys.** On the Account page a user who already has the authenticator app can add passkeys (security key, or fingerprint/face unlock on a phone or laptop). A passkey replaces the 6-digit code, not the password: sign in with the password, then choose "Use a passkey". Nothing to configure on Render; the passkey is tied to the site address, so register passkeys on the final address. If you later move to a new domain, users add them again. Resetting a user's authenticator also removes their backup codes and passkeys.
+- **Idle warning.** Two minutes before the idle limit (default 30 minutes) a dialog counts down with "Stay signed in". Typing or clicking keeps the session alive. The 12-hour cap cannot be extended; a banner shows the last 5 minutes. Change with `SESSION_IDLE_SECONDS`, `SESSION_IDLE_WARNING_SECONDS`, `SESSION_ABSOLUTE_SECONDS`.
+- **Database.** Run migrations (the Docker start command already does): `0008_backup_codes_and_passkeys`.
+
+## Backups (nightly, off-site, encrypted)
+
+Render's free database has no real backups, and **a free Render database is deleted after 30 days unless you upgrade it**. The repository includes `.github/workflows/backup.yml`, which every night dumps the database, encrypts it and keeps it for 30 days as a private download in GitHub (Actions, the run, "Artifacts"). It can also refresh a live copy in Neon.
+
+One-time setup (the GitHub repository must be **private**):
+
+1. On any computer install `age` (https://age-encryption.org) and run `age-keygen -o policehq-backup.key`. It prints a public key starting `age1...`. **Keep `policehq-backup.key` offline with two trusted people.** Without it a backup cannot be opened; with it anyone holding a backup can read the data.
+2. In Render open the database and copy its **External Database URL**.
+3. In GitHub: Settings, Secrets and variables, Actions, New repository secret. Add `BACKUP_DATABASE_URL` (the URL from step 2) and `BACKUP_AGE_RECIPIENT` (the `age1...` public key). Optional: `BACKUP_NEON_URL` (a Neon connection string) to also keep a ready-to-use second copy.
+4. Actions tab, "Nightly database backup", Run workflow. Check it turns green and an artifact appears. If your Render database is not PostgreSQL 16, change `PG_VERSION` in the file.
+
+To restore, download the artifact, then use `ops/restore_test.sh` (restores into a scratch database and checks it) or `age -d -i policehq-backup.key policehq-....dump.age > dump` followed by `pg_restore --clean --if-exists --no-owner -d <new database URL> dump`. Test a restore once now, not on the day you need it.
+
 ## Assumptions to confirm with the Police
 Labels are working labels: Somali names of the titles and units, and whether CID, Traffic and Tax Collection also exist as
 sections inside every regional command (they are created there and can be retired). There is no commissioner appointment yet; add

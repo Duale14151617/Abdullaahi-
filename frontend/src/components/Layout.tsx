@@ -11,6 +11,7 @@ import { NotificationBell } from "./NotificationBell";
 import { SystemFooter } from "./SystemFooter";
 import { GlobalSearch } from "./GlobalSearch";
 import { StepUpDialog } from "./StepUpDialog";
+import { IdleGuard } from "./IdleGuard";
 import { Icon, type IconName } from "./Icon";
 import { useMedia } from "./useMedia";
 import { InstallButton } from "../pwa/install";
@@ -309,6 +310,7 @@ export function Layout() {
       </main>
       <SystemFooter />
       <StepUpDialog />
+      <IdleGuard />
     </div>
   );
 }

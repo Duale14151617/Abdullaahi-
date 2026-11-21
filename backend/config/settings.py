@@ -176,6 +176,12 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 200
 if not DEBUG:  # __Host- cookies: Secure, Path=/, no Domain, so subdomains cannot overwrite them
     SESSION_COOKIE_NAME = "__Host-armyhq-session"
     CSRF_COOKIE_NAME = "__Host-armyhq-csrf"
+SESSION_IDLE_WARNING_SECONDS = int(os.environ.get("SESSION_IDLE_WARNING_SECONDS", "120"))  # the screen warns this long before idle sign-out
+# Passkeys (WebAuthn). Leave both empty to use the address the browser is on (right for Render). Set them if the app is reachable
+# under several hostnames: the RP id is the registrable domain, the origins are full https:// addresses.
+WEBAUTHN_RP_ID = os.environ.get("WEBAUTHN_RP_ID", "")
+WEBAUTHN_ORIGINS = [o.strip() for o in os.environ.get("WEBAUTHN_ORIGINS", "").split(",") if o.strip()]
+WEBAUTHN_RP_NAME = os.environ.get("WEBAUTHN_RP_NAME", "Puntland Police HQ")
 SESSION_SAVE_EVERY_REQUEST = True  # sliding idle timeout
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

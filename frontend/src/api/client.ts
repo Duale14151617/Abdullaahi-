@@ -75,6 +75,10 @@ export async function refreshCsrf(): Promise<void> {
 
 interface Options { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown; headers?: Record<string, string>; query?: Record<string, string | number | undefined | null> }
 
+let lastApiAt = Date.now();
+/** When the server last answered a request: every answer renews the server-side idle timer, which the idle warning needs to know. */
+export const getLastApiAt = (): number => lastApiAt;
+
 export function api<T = unknown>(path: string, opts: Options = {}): Promise<T> {
   return withStepUp(() => apiOnce<T>(path, opts));
 }
@@ -109,6 +113,7 @@ async function apiOnce<T>(path: string, opts: Options): Promise<T> {
   let res: Response;
   try {
     res = await send();
+    lastApiAt = Date.now();
     if (res.status === 403 && method !== "GET") {
       const peek = (await res.clone().json().catch(() => null)) as ErrorBody | null;
       if (peek?.detail && /CSRF/i.test(peek.detail)) {

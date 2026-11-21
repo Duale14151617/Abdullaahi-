@@ -191,3 +191,52 @@ class EmailVerificationCode(models.Model):
     class Meta:
         db_table = "email_verification_codes"
         ordering = ["-created_at"]
+
+
+class MfaBackupCode(models.Model):
+    """One of a set of single-use codes a user prints or saves, to get in when the authenticator app and passkeys are out of reach.
+    Only a hash is stored. Generating a new set deletes the unused old ones."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="backup_codes")
+    code_hash = models.CharField(max_length=64, unique=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "mfa_backup_codes"
+        ordering = ["created_at"]
+
+
+class PasskeyCredential(models.Model):
+    """A WebAuthn passkey (security key, phone, laptop) registered as an additional second factor. The public key is not secret;
+    the private key never leaves the person's device."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="passkeys")
+    credential_id = models.CharField(max_length=512, unique=True)  # base64url
+    public_key = models.TextField()  # base64url of the COSE key
+    sign_count = models.BigIntegerField(default=0)
+    name = models.CharField(max_length=60)
+    transports = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "user_passkeys"
+        ordering = ["created_at"]
+
+
+class PasskeyChallenge(models.Model):
+    """A one-time, short-lived WebAuthn challenge. Stored on the server (not trusted from the browser) and burned on first use."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="+")
+    purpose = models.CharField(max_length=16)  # register | login | stepup
+    challenge = models.CharField(max_length=128)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "passkey_challenges"

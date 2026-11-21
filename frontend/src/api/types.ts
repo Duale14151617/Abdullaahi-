@@ -10,6 +10,10 @@ export interface Assignment {
 export interface Me {
   id: string; username: string; full_name: string; preferred_language: Lang; mfa_enabled: boolean;
   email?: string; email_verified?: boolean; notify_email?: boolean;
+  /** Unused backup codes and registered passkeys (0 unless the authenticator app is on). */
+  backup_codes_remaining?: number; passkey_count?: number;
+  /** Idle limit, how long before it the screen warns, and how long this sign-in can last in all (seconds). */
+  session?: { idle_seconds: number; warn_seconds: number; absolute_remaining: number };
   /** The sign-in before this session and failed attempts since; null on a first-ever sign-in. */
   sign_in?: { previous_at: string; previous_ip: string | null; failed_since: number } | null;
   requires_mfa: boolean; restrictions: string[]; permissions: string[]; assignments: Assignment[];
@@ -418,5 +422,6 @@ export interface BulkUsersReport {
 export interface ReviewFinding { count: number; items: string[] }
 export interface AccessReviewData {
   generated_at: string; users: number; active_users: number; needs_attention: number;
+  security?: { mfa_users: number; passkey_users: number };
   findings: Record<string, ReviewFinding>;
 }

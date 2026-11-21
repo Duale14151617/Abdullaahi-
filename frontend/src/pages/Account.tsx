@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../api/client";
+import { MySessions } from "../components/MySessions";
+import { SecurityKeys } from "../components/SecurityKeys";
 import { useAuth } from "../auth/AuthContext";
 import { Avatar } from "../components/Avatar";
 import { AvatarEditor } from "../components/AvatarEditor";
@@ -58,6 +60,8 @@ export function Account() {
           <AvatarEditor userId={me.id} onChanged={() => void reload()} />
         </section>
       ) : me?.personnel_id && <p className="muted">{t("account.photoNote")}</p>}
+      <SecurityKeys />
+      <MySessions />
       {me?.features.notification_email === true && (
         <section className="card">
           <label className="row" style={{ alignItems: "center", gap: ".6rem" }}>
